@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Math Enigma | Final Fix</title>
+    
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script src="https://unpkg.com/d3@3/d3.min.js"></script>
+    <script src="https://unpkg.com/function-plot@1/dist/function-plot.js"></script>
+
+    <style>
+        /* 保持之前的极简 UI 样式不变 */
+        :root { --bg: #050505; --text: #666; --line: #fff; }
+        body { margin: 0; background: var(--bg); color: var(--text); font-family: sans-serif; height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; }
+        #plot-area { width: 100%; max-width: 700px; height: 450px; opacity: 0; transition: opacity 0.5s; }
+        #plot-area.show { opacity: 1; }
+        .function-plot text { fill: #555 !important; font-size: 10px; }
+        .function-plot .domain { stroke: #444 !important; }
+        .function-plot .tick line { stroke: #222 !important; }
+        .function-plot path.line { stroke: var(--line) !important; stroke-width: 2px !important; filter: drop-shadow(0 0 8px rgba(255,255,255,0.3)); }
+        #latex { font-size: 1.8rem; min-height: 60px; color: #ddd; margin: 30px 0; opacity: 0; transition: opacity 0.5s; }
+        #latex.show { opacity: 1; }
+        button { background: transparent; border: 1px solid #333; color: #888; padding: 12px 40px; border-radius: 4px; cursor: pointer; letter-spacing: 2px; }
+        button:hover { color: #fff; border-color: #888; }
+        button:disabled { opacity: 0.3; }
+    </style>
+</head>
+<body>
+
+    <div id="plot-area"></div>
+    <div id="latex"></div>
+    <button id="btn" onclick="run()">GENERATE</button>
+
+    <script>
+        // =========================================
+        // 1. AST 节点定义 (双语版)
+        // =========================================
+        
+        class Node {
+            toExec() { return ""; } // 给 JS 引擎 (Validation)
+            toPlot() { return ""; } // 给 Function-plot (Rendering)
+            toLatex() { return ""; } // 给 KaTeX (Display)
+        }
+
+        class Atom extends Node {
+            constructor(val, plotVal, execVal, latexVal) {
+                super();
+                this.val = val;
+                this.plotVal = plotVal || val;
+                this.execVal = execVal || val;
+                this.latexVal = latexVal || val;
+            }
+            toPlot() { return this.plotVal; }
+            toExec() { return this.execVal; }
+            toLatex() { return this.latexVal; }
+        }
+
+        class Var extends Node {
+            toPlot() { return "x"; }
+            toExec() { return "x"; }
+            toLatex() { return "x"; }
+        }
+
+        class UnaryOp extends Node {
+            constructor(op, child) {
+                super();
+                this.op = op; 
+                this.child = child;
+            }
+            toPlot() {
+                // 绘图库需要: sin(x), log(abs(x)+0.001)
+                if (this.op === "ln") return `log(abs(${this.child.toPlot()}) + 0.001)`;
+                if (this.op === "sqrt") return `sqrt(abs(${this.child.toPlot()}))`;
+                return `${this.op}(${this.child.toPlot()})`;
+            }
+            toExec() {
+                // JS 引擎需要: Math.sin(x), Math.log(Math.abs(x)+0.001)
+                if (this.op === "ln") return `Math.log(Math.abs(${this.child.toExec()}) + 0.001)`;
+                if (this.op === "sqrt") return `Math.sqrt(Math.abs(${this.child.toExec()}))`;
+                if (this.op === "exp") return `Math.exp(${this.child.toExec()})`;
+                return `Math.${this.op}(${this.child.toExec()})`;
+            }
+            toLatex() {
+                if (this.op === "ln") return `\\ln(|${this.child.toLatex()}|)`;
+                if (this.op === "sqrt") return `\\sqrt{|${this.child.toLatex()}|}`;
+                if (this.op === "exp") return `e^{${this.child.toLatex()}}`;
+                return `\\${this.op}(${this.child.toLatex()})`;
+            }
+        }
+
+        class BinaryOp extends Node {
+            constructor(op, left, right) {
+                super();
+                this.op = op;
+                this.left = left;
+                this.right = right;
+            }
+            toPlot() { return `(${this.left.toPlot()} ${this.op} ${this.right.toPlot()})`; }
+            toExec() { return `(${this.left.toExec()} ${this.op} ${this.right.toExec()})`; }
+            toLatex() {
+                if (this.op === "/") return `\\frac{${this.left.toLatex()}}{${this.right.toLatex()}}`;
+                if (this.op === "*") return `${this.left.toLatex()} \\cdot ${this.right.toLatex()}`;
+                return `${this.left.toLatex()} ${this.op} ${this.right.toLatex()}`;
+            }
+        }
+
+        // =========================================
+        // 2. 配置与生成
+        // =========================================
+
+        const ATOMS = [
+            new Atom("2"), new Atom("3"),
+            // 关键修正：Atom 现在携带三种形态
+            // 参数顺序: (默认显示, Plot串, Exec串, Latex串)
+            new Atom("pi", "PI", "Math.PI", "\\pi"), 
+            new Atom("e", "E", "Math.E", "e")
+        ];
+        
+        const OPS_UNARY = ["sin", "cos", "ln", "sqrt", "exp"];
+        const OPS_BINARY = ["+", "-", "*", "/"];
+
+        function randInt(n) { return Math.floor(Math.random() * n); }
+
+        function generateAST(depth, forceVar) {
+            if (depth <= 0) {
+                if (forceVar) return new Var();
+                return Math.random() < 0.4 ? new Var() : ATOMS[randInt(ATOMS.length)];
+            }
+            const r = Math.random();
+            if (r < 0.15 && !forceVar) {
+                return Math.random() < 0.5 ? new Var() : ATOMS[randInt(ATOMS.length)];
+            } else if (r < 0.65) {
+                const op = OPS_UNARY[randInt(OPS_UNARY.length)];
+                return new UnaryOp(op, generateAST(depth - 1, forceVar));
+            } else {
+                const op = OPS_BINARY[randInt(OPS_BINARY.length)];
+                let lForce = false, rForce = false;
+                if (forceVar) Math.random() < 0.5 ? lForce = true : rForce = true;
+                return new BinaryOp(op, generateAST(depth - 1, lForce), generateAST(Math.max(0, depth - 2), rForce));
+            }
+        }
+
+        // =========================================
+        // 3. 验证器 (Validator)
+        // =========================================
+
+        function validate(ast) {
+            // 使用 toExec() 生成的代码进行验证
+            const code = ast.toExec();
+            let func;
+            try { func = new Function("x", `return ${code};`); } catch(e) { return null; }
+
+            const pts = [-4, -2, -0.5, 0.5, 2, 4, 3.14];
+            const res = [];
+            for (let x of pts) {
+                const y = func(x);
+                if (isFinite(y) && !isNaN(y)) res.push({x, y});
+            }
+
+            if (res.length < 5) return null;
+            
+            const ys = res.map(p => p.y);
+            const range = Math.max(...ys) - Math.min(...ys);
+            
+            // 常数检测
+            if (range < 0.001) return null;
+            
+            // 恒等检测 (y=x 或 y=-x)
+            const isId = res.every(p => Math.abs(p.y - p.x) < 0.1);
+            const isNegId = res.every(p => Math.abs(p.y + p.x) < 0.1);
+            if (isId || isNegId) return null;
+
+            const mid = (Math.max(...ys) + Math.min(...ys)) / 2;
+            const span = Math.max(range * 1.5, 10);
+
+            return {
+                yDomain: [mid - span/2, mid + span/2],
+                plotString: ast.toPlot() // 验证通过后，返回 toPlot() 的代码给绘图库
+            };
+        }
+
+        // =========================================
+        // 4. 执行
+        // =========================================
+
+        function run() {
+            const btn = document.getElementById('btn');
+            const plotDiv = document.getElementById('plot-area');
+            const latexDiv = document.getElementById('latex');
+
+            btn.disabled = true;
+            plotDiv.classList.remove('show');
+            latexDiv.classList.remove('show');
+
+            setTimeout(() => {
+                let data = null, ast = null, i = 0;
+                while (!data && i < 200) {
+                    ast = generateAST(Math.floor(Math.random()*3)+2, true);
+                    data = validate(ast);
+                    i++;
+                }
+                
+                if (!data) { // 保底
+                    ast = { toLatex: () => "\\sin(x)" };
+                    data = { plotString: "sin(x)", yDomain: [-2, 2] };
+                }
+
+                katex.render(`f(x) = ${ast.toLatex()}`, latexDiv);
+                
+                plotDiv.innerHTML = "";
+                functionPlot({
+                    target: '#plot-area',
+                    width: 700, height: 450,
+                    yAxis: { domain: data.yDomain },
+                    xAxis: { domain: [-6, 6] },
+                    grid: true,
+                    data: [{
+                        fn: data.plotString, // 这里现在是干净的 "sin(PI/e)..."
+                        nSamples: 2000,
+                        graphType: 'polyline'
+                    }],
+                    disableZoom: true
+                });
+
+                plotDiv.classList.add('show');
+                latexDiv.classList.add('show');
+                btn.disabled = false;
+            }, 300);
+        }
+
+        window.onload = run;
+    </script>
+</body>
+</html>
