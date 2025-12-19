@@ -1,102 +1,79 @@
-# Math Enigma | 函数海龟汤生成器
+# 🧮 Math Enigma | Function Synthesis Engine
 
-**Math Enigma** 是一个基于 Web 的极简主义数学函数生成引擎。它能随机生成结构复杂、图像优美的**复合函数**，并实时渲染其 LaTeX 公式与函数图像。
+![License](https://img.shields.io/badge/license-MIT-blue.svg)
+![Tech](https://img.shields.io/badge/HTML5-KaTeX-green)
+![Style](https://img.shields.io/badge/Style-Minimalist-black)
 
-不同于普通的随机字符拼接，本项目采用 **“逻辑优先”** 的生成策略，确保生成的每一个函数都在实数域上有意义、非平凡（非线性/非简单的常数），并具备自动对焦的视觉呈现能力。
-
----
-
-## ✨ 核心特性
-
-* **🎨 极简主义设计 (Swiss Style)**: 深色模式，大留白，搭配发光曲线与衬线字体，提供画廊般的视觉体验。
-* **🧠 AST 驱动生成 (AST-First)**: 基于抽象语法树（Abstract Syntax Tree）构建数学逻辑，而非简单的字符串拼接。这确保了逻辑的严密性。
-* **🛡️ 严苛的数值验证管线**:
-* **反常数检测**: 通过方差计算过滤掉  这类伪装成复杂函数的常数。
-* **反恒等检测**: 自动剔除  或  等过于简单的线性函数。
-* **定义域安全**: 自动处理  和  的定义域问题，防止绘图空白。
-
-
-* **📷 智能自动对焦 (Auto-Scaling)**: 无论函数值域是  还是 ，视图会自动缩放并对焦到图像中心，拒绝“画出画框外”。
-* **📋 一键复制 LaTeX**: 点击公式旁的图标即可复制纯 LaTeX 代码，方便与 LLM（如 ChatGPT/Claude）交互。
-* **🥚 隐藏彩蛋**: 0.1% 的概率生成关于 `114514` 的特殊函数。
+> 一个基于 Web 的极简主义数学函数生成器。它不仅能“写”出复杂的复合函数，还能“画”出优美的函数曲线。
 
 ---
 
-## 🛠️ 技术原理
+## 🖼️ 预览 (Preview)
 
-本项目解决了随机生成数学函数时常见的“三大难题”：
+### ✨ 深色模式 (Dark Mode)
+> 极客风格，发光曲线，适合夜间沉浸体验。
 
-### 1. 语法与逻辑分离 (AST Architecture)
+![Dark Mode Preview](PLACEHOLDER_FOR_DARK_MODE_IMAGE)
 
-我们定义了 `Node`, `Atom`, `UnaryOp`, `BinaryOp` 类。每个节点具备三种输出形态，解决了不同库之间的“方言”障碍：
+### ☀️ 浅色模式 (Light Mode)
+> 经典教科书风格，白底黑字，清晰锐利。
 
-* `toExec()`: 输出 `Math.sin(Math.PI)`，供 JS 引擎进行数值验证。
-* `toPlot()`: 输出 `sin(PI)`，供 function-plot 库绘图。
-* `toLatex()`: 输出 `\sin(\pi)`，供 KaTeX 渲染展示。
-
-### 2. Matlab 级验证 (Validation Pipeline)
-
-在渲染之前，生成的 AST 会被编译为可执行函数并在后台进行**数值采样**：
-
-1. **采样**: 在  区间内选取多个关键点（包括无理数点）。
-2. **存活测试**: 检查计算结果是否包含过多的 `NaN` 或 `Infinity`。
-3. **方差分析**: 计算 Y 值的方差，若小于阈值，判定为“视觉常数”，强制重抽。
-4. **MSE 检测**: 计算与  的均方误差，防止生成平凡解。
-
-### 3. 双层渲染 (Dual Rendering)
-
-* **公式渲染**: 使用 [KaTeX](https://katex.org/)，轻量且排版精美。
-* **函数绘图**: 使用 [Function Plot](https://github.com/mauriciopoppe/function-plot) (基于 D3.js)，并进行了深度 CSS 定制以适配暗黑风格。
+![Light Mode Preview](PLACEHOLDER_FOR_LIGHT_MODE_IMAGE)
 
 ---
 
-## 🚀 快速开始
+## 🚀 核心特性 (Features)
+
+* **🎨 极简美学 UI**: 采用 Swiss Style 排版，配合 CSS 变量实现的平滑深/浅色主题切换。
+* **📐 专业公式渲染**: 使用 **KaTeX** 的 `aligned` 环境与 `\displaystyle` 模式，呈现如教科书般完美的数学排版。
+* **🧠 AST 驱动生成**: 抛弃简单的字符串拼接，采用**抽象语法树 (AST)** 构建数学逻辑，确保生成的函数结构严谨。
+* **🛡️ 智能验证管线**: 内置“Matlab 级”数值验证：
+    * **反常数**: 自动过滤 $f(x) = \cos(e^\pi)$ 这类伪装成函数的常数。
+    * **反平凡**: 自动剔除 $f(x)=x$ 等过于简单的线性函数。
+    * **定义域保护**: 自动处理 $\ln(x), \sqrt{x}$ 的定义域问题，防止绘图空白。
+* **📷 自动对焦 (Auto-Scaling)**: 无论函数值域在 $[0,1]$ 还是 $[1000, 1200]$，镜头自动对焦至图像中心。
+* **📋 一键复制**: 点击复制纯 LaTeX 代码，方便与 LLM (ChatGPT/Claude) 交互。
+* **🥚 隐藏彩蛋**: 0.1% 概率触发神秘的 `114514` 特殊函数。
+
+---
+
+## 🛠️ 技术原理 (How it Works)
+
+本项目解决了随机生成数学函数时的“方言不通”问题。
+
+### 1. 双模 AST 节点 (Dual-Mode AST)
+我们定义了 `Node` 类，每个数学节点具备三种输出形态：
+* **`toExec()`**: 输出 `Math.sin(Math.PI)` —— 供 JS 引擎后台验证。
+* **`toPlot()`**: 输出 `sin(PI)` —— 供 Function-plot 绘图库解析。
+* **`toLatex()`**: 输出 `\sin(\pi)` —— 供 KaTeX 前端展示。
+
+### 2. 验证与优选 (Validation Loop)
+生成器会在后台进行最多 200 次的快速迭代：
+1.  **构建**: 随机生成一棵深度为 2-4 的语法树。
+2.  **采样**: 在 $[-5, 5]$ 区间内进行数值采样。
+3.  **分析**: 计算方差、均方误差 (MSE) 和有效点数量。
+4.  **决策**: 只有通过所有测试（非 NaN、非直线、非点）的函数才会被渲染。
+
+---
+
+## 📦 快速开始 (Quick Start)
 
 本项目为**单文件 (Single-File)** 架构，无需 Node.js 环境或构建步骤。
 
-1. 下载 `index.html` 文件。
-2. 直接在浏览器（Chrome/Edge/Safari）中打开。
-3. 点击 **GENERATE** 按钮体验。
+1.  克隆或下载本项目。
+2.  确保电脑联网（需要加载 CDN 资源）。
+3.  直接双击打开 `index.html`。
 
-> **注意**: 需要联网以加载 CDN 资源（KaTeX, D3, Function-plot）。
-
----
-
-## 🎮 操作指南
-
-* **Generate**: 点击生成一个新的函数。算法会尝试最多 200 次以找到一个符合“审美标准”的函数。
-* **Copy Latex**: 点击公式右侧的 📋 图标，复制 LaTeX 代码。
-* **Zoom/Pan**: 默认禁用交互，以保持“艺术展品”的静态美感（可在代码中修改 `disableZoom: false` 开启）。
+### 依赖库 (CDN)
+* [KaTeX](https://katex.org/) - LaTeX 渲染
+* [D3.js v3](https://d3js.org/) - 数据可视化核心
+* [Function Plot](https://github.com/mauriciopoppe/function-plot) - 函数绘图引擎
 
 ---
 
-## 🥚 彩蛋 (Easter Egg)
+## 🤝 贡献与版权 (License)
 
-在生成逻辑的最前端，埋藏了一个极低概率的触发器：
-
-```javascript
-if (Math.random() < 0.001) {
-    // ???
-}
-
-```
-
-一旦触发，系统将无视常规数学逻辑，为你呈现一个独特的数值奇迹。
+Copyright (c) 2025 **Cichlier**.
+Licensed under the MIT License.
 
 ---
-
-## 📦 依赖库 (CDN)
-
-* [KaTeX v0.16.9](https://katex.org/) - LaTeX 渲染
-* [D3.js v3](https://d3js.org/) - 数据可视化基础
-* [Function Plot v1](https://github.com/mauriciopoppe/function-plot) - 函数绘图引擎
-
----
-
-## 📄 License
-
-MIT License. Feel free to use and modify.
-
----
-
-**Created with ❤️ by Gemini & Cichlid.**
