@@ -3,257 +3,824 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Math Enigma | 数学海龟汤</title>
+    <title>Math Enigma Pro</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script>
+        window.MathJax = {
+            tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']] },
+            svg: { fontCache: 'global' },
+            startup: { typeset: false }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
-    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.17/d3.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/function-plot/1.18.1/function-plot.js"></script>
-
     <style>
-        /* ================= 视觉系统 ================= */
+        /* === 1. 变量系统 === */
         :root {
-            --bg: #050505; --text: #888; --formula: #fff; /* 公式颜色调更亮 */
-            --line-color: #fff; --line-glow: rgba(255, 255, 255, 0.5);
-            --grid-line: rgba(255, 255, 255, 0.08); 
-            --origin-line: rgba(255, 255, 255, 0.6); 
-            --axis-line: rgba(255, 255, 255, 0.2); 
-            --btn-border: #333; --btn-hover: rgba(255,255,255,0.1);
-            --transition-speed: 0.6s;
+            /* 默认: Dark */
+            --bg-color: #131314;
+            --sidebar-bg: #1e1f20;
+            --surface-hover: #2c2c2c;
+            --active-bg: #004a77; 
+            --active-text: #c2e7ff;
+            --text-primary: #e3e3e3;
+            --text-secondary: #c4c7c5;
+            --menu-bg: #2b2d31;
+            --input-bg: #1e1f20;
+            
+            /* 气泡 */
+            --bubble-them-bg: #2c2c2c;
+            --bubble-them-text: #ffffff;
+            --gradient-start: #0b57d0; 
+            --gradient-end: #651fff; 
+            --bubble-text: #ffffff;
+
+            --pill-radius: 50px;
+            --menu-radius: 16px;
+            --font-family: 'Google Sans', 'Segoe UI', Roboto, sans-serif;
+            --bezier-bounce: cubic-bezier(0.2, 0.0, 0, 1.0);
+            --bezier-pop: cubic-bezier(0.3, 1.3, 0.3, 1);
+            
+            --header-height: 60px;
+            --shadow-elevation: 0 4px 12px rgba(0,0,0,0.3), 0 0 2px rgba(0,0,0,0.2);
         }
 
-        [data-theme="light"] {
-            --bg: #ffffff; --text: #666; --formula: #000;
-            --line-color: #2c3e50; --line-glow: rgba(44, 62, 80, 0.2);
-            --grid-line: rgba(0, 0, 0, 0.06); --origin-line: rgba(0, 0, 0, 0.8);
-            --axis-line: rgba(0, 0, 0, 0.2); --btn-border: #ccc; --btn-hover: rgba(0,0,0,0.05);
+        /* Theme: Light */
+        body.theme-light {
+            --bg-color: #ffffff;
+            --sidebar-bg: #f0f2f5;
+            --surface-hover: #e1e3e6;
+            --active-bg: #d3e3fd;
+            --active-text: #041e49;
+            --text-primary: #1f1f1f;
+            --text-secondary: #444746;
+            --menu-bg: #ffffff;
+            --input-bg: #f0f2f5;
+            --bubble-them-bg: #f2f2f2;
+            --bubble-them-text: #000000;
+            --gradient-start: #0b57d0;
+            --gradient-end: #7c4dff;
+            --bubble-text: #ffffff;
+            --shadow-elevation: 0 4px 12px rgba(0,0,0,0.15), 0 0 2px rgba(0,0,0,0.1);
         }
 
-        body { 
-            margin: 0; background: var(--bg); color: var(--text); 
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; height: 100vh; 
-            display: flex; flex-direction: column; align-items: center; justify-content: center; 
-            overflow: hidden; user-select: none; transition: background 0.5s ease;
+        /* Theme: Midnight */
+        body.theme-midnight {
+            --bg-color: #000000;
+            --sidebar-bg: #000000;
+            --surface-hover: #1a1a1a;
+            --active-bg: #1a1a1a;
+            --active-text: #ffffff;
+            --text-primary: #ffffff;
+            --text-secondary: #888888;
+            --menu-bg: #111111;
+            --input-bg: #111111;
+            --bubble-them-bg: #111111;
+            --bubble-them-text: #cccccc;
+            --gradient-start: #00e5ff;
+            --gradient-end: #d500f9;
+            --bubble-text: #000000;
         }
 
-        /* 顶部栏 */
-        .top-bar { position: absolute; top: 0; width: 100%; padding: 20px 0; display: flex; justify-content: center; z-index: 10; }
-        header { letter-spacing: 4px; font-size: 0.7rem; text-transform: uppercase; font-weight: 600; opacity: 0.6; }
-        .theme-toggle { position: absolute; right: 20px; top: 15px; background: transparent; border: none; cursor: pointer; padding: 8px; color: var(--text); transition: transform 0.3s; }
-        .theme-toggle:active { transform: rotate(30deg); }
-        .theme-toggle svg { width: 20px; height: 20px; fill: currentColor; }
-
-        /* 绘图区 */
-        #plot-wrapper { 
-            width: 95%; max-width: 700px; height: 40vh; max-height: 450px; min-height: 300px; 
-            margin-bottom: 20px; position: relative; display: flex; align-items: center; justify-content: center; 
-        }
-        #plot-area { 
-            width: 100%; height: 100%; opacity: 0; 
-            transition: opacity var(--transition-speed) cubic-bezier(0.4, 0, 0.2, 1); 
-        }
-        #plot-area.show { opacity: 1; }
-
-        /* Function Plot 样式 */
-        .function-plot text { fill: var(--text) !important; font-size: 10px; font-family: monospace; }
-        .function-plot .grid .tick { stroke: var(--grid-line) !important; stroke-width: 1px; }
-        .function-plot .domain { stroke: var(--axis-line) !important; stroke-width: 1px; fill: none; }
-        .function-plot .origin { stroke: var(--origin-line) !important; stroke-width: 1.5px !important; opacity: 1 !important; }
-        .function-plot path.line { 
-            stroke: var(--line-color) !important; stroke-width: 2px !important; 
-            filter: drop-shadow(0 0 8px var(--line-glow)); transition: d 0.5s ease; 
+        /* Theme: Forest */
+        body.theme-forest {
+            --bg-color: #0f1812;
+            --sidebar-bg: #15221a;
+            --surface-hover: #213327;
+            --active-bg: #c4eed0;
+            --active-text: #072711;
+            --text-primary: #e3e3e3;
+            --text-secondary: #888888;
+            --menu-bg: #1b2b21;
+            --input-bg: #1b2b21;
+            --bubble-them-bg: #1b2b21;
+            --bubble-them-text: #e3e3e3;
+            --gradient-start: #2e7d32;
+            --gradient-end: #00695c;
+            --bubble-text: #ffffff;
         }
 
-        /* 公式区 - 字体放大，适应 display style */
-        .formula-wrapper { 
-            display: flex; align-items: center; justify-content: center; gap: 10px; width: 90%; min-height: 80px; margin-bottom: 20px; 
-            opacity: 0; transform: translateY(10px); transition: all var(--transition-speed) ease;
+        body, html { margin: 0; padding: 0; height: 100%; font-family: var(--font-family); background-color: var(--bg-color); color: var(--text-primary); overflow: hidden; transition: background 0.3s, color 0.3s; }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; }
+
+        .app-container { display: flex; height: 100vh; width: 100vw; }
+
+        /* === 2. 侧边栏 (Rail Mode) === */
+        .sidebar {
+            width: 280px;
+            background: var(--sidebar-bg);
+            display: flex; flex-direction: column;
+            padding: 0 12px 12px 12px;
+            transition: width 0.4s var(--bezier-bounce), background 0.3s;
+            z-index: 100;
+            flex-shrink: 0;
+            border-right: 1px solid rgba(255,255,255,0.03);
+            position: relative;
+            overflow: hidden; 
         }
-        .formula-wrapper.show { opacity: 1; transform: translateY(0); }
         
-        #latex { 
-            font-size: 1.8rem; /* 稍微调大一点 */
-            color: var(--formula); 
-            overflow-x: auto; 
-            white-space: nowrap; 
-            padding-bottom: 5px; 
-            max-width: 85%; 
+        .sidebar.collapsed { width: 72px; padding: 0 8px 12px 8px; }
+
+        .sidebar-header {
+            display: flex; align-items: center; 
+            height: var(--header-height);
+            margin-bottom: 0; padding-left: 4px;
+            flex-shrink: 0;
         }
-        /* 隐藏滚动条 */
-        #latex::-webkit-scrollbar { height: 0; width: 0; }
         
-        .copy-btn { background: transparent; border: none; cursor: pointer; padding: 8px; opacity: 0.4; transition: 0.3s; flex-shrink: 0; }
-        .copy-btn:hover { opacity: 1; }
-        .copy-btn svg { width: 18px; height: 18px; fill: var(--text); }
-
-        /* 主按钮 */
-        .main-btn { 
-            background: transparent; border: 1px solid var(--btn-border); color: var(--text); 
-            padding: 12px 40px; border-radius: 50px; cursor: pointer; font-size: 0.9rem; letter-spacing: 2px; 
-            transition: all 0.3s ease; min-width: 160px; touch-action: manipulation; position: relative; overflow: hidden;
+        .menu-btn {
+            width: 40px; height: 40px; min-width: 40px;
+            background: transparent; border: none; color: var(--text-secondary);
+            border-radius: 50%; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            position: relative; overflow: hidden;
+            transition: color 0.2s;
         }
-        .main-btn:hover { border-color: var(--text); color: #fff; background: rgba(255,255,255,0.02); box-shadow: 0 0 20px rgba(255,255,255,0.05); }
-        .main-btn:active { transform: scale(0.97); }
-        .main-btn:disabled { opacity: 0.3; cursor: default; transform: none; box-shadow: none; }
+        .menu-btn:hover { background: var(--surface-hover); color: var(--text-primary); }
 
-        footer {
-            position: absolute; bottom: 15px; font-size: 0.6rem; color: var(--text); opacity: 0.4; letter-spacing: 1px; pointer-events: none; text-align: center; width: 100%;
+        .sidebar-content {
+            flex: 1; display: flex; flex-direction: column;
+            transition: opacity 0.2s, transform 0.2s;
+            opacity: 1; transform: translateX(0);
+            width: 256px; margin-top: 10px;
+        }
+        .sidebar.collapsed .sidebar-content {
+            opacity: 0; pointer-events: none; transform: translateX(-10px);
+            transition: opacity 0.1s;
         }
 
-        .meme-mode #latex { color: #f39c12; text-shadow: 0 0 10px rgba(243, 156, 18, 0.3); }
-        @media (max-width: 600px) { #plot-wrapper { height: 35vh; } #latex { font-size: 1.5rem; } }
+        .new-chat-btn {
+            background: var(--surface-hover); color: var(--text-primary); border: none;
+            padding: 12px 16px; border-radius: 16px; font-size: 14px; font-weight: 500;
+            display: flex; align-items: center; gap: 12px; cursor: pointer;
+            transition: background 0.2s; margin-bottom: 20px;
+            position: relative; overflow: hidden;
+        }
+        .new-chat-btn:hover { filter: brightness(0.95); }
+        .plus-icon { font-size: 20px; color: var(--gradient-start); }
+
+        .history-section-title { font-size: 12px; font-weight: 500; color: var(--text-secondary); margin: 10px 10px 5px; }
+        .history-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
+
+        .history-item {
+            padding: 10px 16px; border-radius: var(--pill-radius);
+            font-size: 14px; color: var(--text-primary);
+            cursor: pointer; position: relative;
+            display: flex; align-items: center; justify-content: space-between;
+            transition: background 0.1s; overflow: hidden; height: 44px;
+        }
+        .history-item.entering { animation: slideInLeft 0.3s var(--bezier-bounce) forwards; }
+        @keyframes slideInLeft { from { opacity: 0; transform: translateX(-20px); } to { opacity: 1; transform: translateX(0); } }
+        .history-item:hover { background-color: var(--surface-hover); }
+        .history-item.active { background-color: var(--active-bg); color: var(--active-text); font-weight: 600; }
+        .history-item.active .item-text { color: var(--active-text); }
+        .item-text { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-right: 8px; }
+        .pinned-icon { font-size: 12px; margin-right: 5px; color: var(--text-secondary); }
+        
+        .kebab-menu-btn {
+            background: transparent; border: none; color: var(--text-secondary);
+            border-radius: 50%; width: 28px; height: 28px;
+            display: flex; align-items: center; justify-content: center;
+            opacity: 0; transition: opacity 0.2s; cursor: pointer; z-index: 2;
+        }
+        .history-item:hover .kebab-menu-btn { opacity: 1; }
+        .kebab-menu-btn:hover { background: rgba(255,255,255,0.2); color: var(--text-primary); }
+
+        .settings-area { margin-top: auto; padding-top: 10px; position: relative; }
+        .settings-btn {
+            width: 100%; padding: 12px 16px; border-radius: var(--pill-radius);
+            background: transparent; color: var(--text-primary); border: none;
+            text-align: left; cursor: pointer; display: flex; align-items: center; gap: 12px;
+            font-size: 14px; position: relative; overflow: hidden; transition: background-color 0.2s;
+        }
+        .settings-btn:hover { background-color: var(--surface-hover); }
+        .settings-btn.active { background-color: var(--active-bg); color: var(--active-text); }
+
+        /* === 3. 主界面 === */
+        .main-area { flex: 1; display: flex; flex-direction: column; background-color: var(--bg-color); position: relative; }
+        
+        .main-header {
+            position: absolute; top: 0; left: 0; right: 0; 
+            height: var(--header-height);
+            display: flex; align-items: center; padding: 0 20px;
+            z-index: 10; 
+        }
+        .project-title {
+            font-size: 18px; color: var(--text-secondary); cursor: default;
+            display: flex; align-items: center; gap: 8px; font-weight: 500;
+        }
+        .project-title:hover { color: var(--text-primary); }
+
+        .mobile-toggle {
+            position: absolute; left: 10px; top: 10px; z-index: 20;
+            background: transparent; border: none; color: var(--text-secondary);
+            width: 40px; height: 40px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            opacity: 0; pointer-events: none;
+            transition: opacity 0.3s ease, transform 0.3s var(--bezier-bounce);
+            transform: translateX(-20px); 
+            cursor: pointer;
+        }
+        .mobile-toggle:hover { background: var(--surface-hover); color: var(--text-primary); }
+
+        .chat-scroll { flex: 1; overflow-y: auto; padding: 74px 12% 20px; display: flex; flex-direction: column; }
+
+        .message-row { display: flex; width: 100%; margin-bottom: 20px; }
+        .message-row.me { justify-content: flex-end; }
+        
+        /* 智能分组 */
+        .message-row.me + .message-row.me { margin-top: -16px; } 
+        .message-row.them + .message-row.them { margin-top: -16px; }
+
+        .bubble {
+            max-width: 80%; 
+            padding: 6px 14px; 
+            font-size: 15px; line-height: 1.4; 
+            position: relative; word-wrap: break-word;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            opacity: 0; transform: scale(0.9) translateY(10px);
+            animation: popIn 0.35s var(--bezier-bounce) forwards;
+            transition: background-color 0.5s ease;
+        }
+        .bubble p { margin: 0; }
+        @keyframes popIn { to { opacity: 1; transform: scale(1) translateY(0); } }
+
+        .bubble.them {
+            background: var(--bubble-them-bg); color: var(--bubble-them-text);
+            border-radius: 18px 18px 18px 4px; transform-origin: bottom left;
+        }
+        .bubble.me {
+            color: var(--bubble-text);
+            border-radius: 18px 18px 4px 18px; transform-origin: bottom right;
+            background-color: var(--gradient-start);
+        }
+        .bubble.error {
+            background: #ffcdd2 !important; color: #b71c1c !important; border: 1px solid #e57373;
+        }
+
+        .spinner {
+            width: 20px; height: 20px; border: 2px solid transparent;
+            border-top-color: var(--gradient-start); border-right-color: var(--gradient-start);
+            border-radius: 50%; animation: spin 0.8s linear infinite; margin-left: 5px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .input-area { background: var(--bg-color); padding: 0 12% 24px; display: flex; align-items: flex-end; gap: 12px; transition: background 0.3s; }
+        .input-wrapper {
+            flex: 1; background: var(--input-bg); border-radius: 28px; display: flex; align-items: center;
+            padding: 10px 20px; border: 1px solid transparent; transition: 0.2s;
+        }
+        .input-wrapper:focus-within { background: var(--input-bg); border-color: var(--text-secondary); }
+        .chat-input { flex: 1; border: none; background: transparent; color: var(--text-primary); font-size: 16px; resize: none; max-height: 150px; outline: none; font-family: inherit; }
+        
+        .send-btn {
+            width: 44px; height: 44px; border-radius: 50%; background: transparent;
+            color: var(--text-secondary); border: none; display: flex; align-items: center; justify-content: center;
+            cursor: pointer; transition: 0.2s; position: relative; overflow: hidden;
+        }
+        .send-btn:hover { background: var(--surface-hover); }
+        .send-btn.active { background: var(--active-bg); color: var(--active-text); }
+
+        /* === 4. Gemini Style Popovers === */
+        .popover-menu {
+            position: fixed; background: var(--menu-bg); padding: 8px;
+            border-radius: var(--menu-radius);
+            box-shadow: var(--shadow-elevation);
+            display: none; flex-direction: column; min-width: 200px; z-index: 1000;
+            border: 1px solid rgba(255,255,255,0.05);
+            /* Scale & Fade Animation */
+            transform-origin: bottom left; opacity: 0; transform: scale(0.9);
+            transition: opacity 0.15s ease, transform 0.15s var(--bezier-pop);
+        }
+        body.light-theme .popover-menu { border: 1px solid rgba(0,0,0,0.08); }
+        .popover-menu.show { display: flex; opacity: 1; transform: scale(1); }
+        
+        .menu-option {
+            padding: 12px 16px; border-radius: 12px; cursor: pointer; font-size: 14px; color: var(--text-primary);
+            display: flex; align-items: center; gap: 12px; position: relative; overflow: hidden;
+            transition: background 0.1s;
+        }
+        .menu-option:hover { background: var(--surface-hover); }
+        .menu-option.danger { color: #ff8b8b; }
+        .menu-separator { height: 1px; background: rgba(255,255,255,0.1); margin: 4px 8px; }
+
+        .icon-svg { width: 20px; height: 20px; stroke: currentColor; stroke-width: 2; fill: none; }
+
+        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 2000; align-items: center; justify-content: center; backdrop-filter: blur(4px); }
+        .modal.active { display: flex; }
+        .modal-box { 
+            background: var(--menu-bg); padding: 24px; border-radius: 24px; width: 400px; 
+            color: var(--text-primary); box-shadow: var(--shadow-elevation);
+            transform: scale(0.95); opacity: 0; transition: transform 0.2s var(--bezier-pop), opacity 0.2s;
+        }
+        .modal.active .modal-box { transform: scale(1); opacity: 1; }
+        
+        .modal input { width: 100%; padding: 12px; margin: 8px 0 20px; background: rgba(0,0,0,0.1); border: 1px solid transparent; color: var(--text-primary); border-radius: 8px; }
+        .modal input:focus { border-color: var(--active-bg); }
+        .modal-btns { text-align: right; }
+        .btn { padding: 8px 24px; border-radius: 20px; border: none; cursor: pointer; font-weight: 500; margin-left: 10px; position: relative; overflow: hidden; }
+        .btn-primary { background: var(--active-bg); color: var(--active-text); }
+        .btn-text { background: transparent; color: var(--active-bg); }
+
+        .theme-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+        .theme-btn { 
+            padding: 15px; border-radius: 12px; border: 2px solid transparent; cursor: pointer; 
+            text-align: center; background: rgba(0,0,0,0.1); color: var(--text-primary);
+            transition: 0.2s;
+        }
+        .theme-btn:hover { background: rgba(0,0,0,0.2); }
+        .theme-btn.selected { border-color: var(--active-bg); background: rgba(0,0,0,0.05); color: var(--active-bg); font-weight: bold; }
+
+        .ripple {
+            position: absolute; border-radius: 50%; background: rgba(255, 255, 255, 0.1);
+            transform: scale(0); animation: ripple-anim 0.6s ease-out; pointer-events: none;
+        }
+        @keyframes ripple-anim { to { transform: scale(3); opacity: 0; } }
+
+        @media (max-width: 768px) {
+            .sidebar { position: fixed; height: 100%; left: 0; transform: translateX(-100%); width: 280px; }
+            .sidebar.show { transform: translateX(0); }
+            .sidebar.collapsed { width: 280px; } 
+            .main-header { padding-left: 50px; } 
+            .mobile-toggle { 
+                opacity: 1; pointer-events: auto; transform: translateX(0);
+            } 
+            .sidebar.show ~ .main-area .mobile-toggle { 
+                opacity: 0; pointer-events: none; transform: translateX(-20px);
+            }
+            .chat-scroll, .input-area { padding-left: 16px; padding-right: 16px; }
+            .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 90; }
+            .sidebar.show + .sidebar-overlay { display: block; }
+        }
     </style>
 </head>
 <body>
 
-    <div class="top-bar">
-        <header>Math Enigma</header>
-        <button class="theme-toggle" onclick="toggleTheme()">
-            <svg id="icon-sun" viewBox="0 0 24 24" style="display:none"><path d="M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zM2 13h2c.55 0 1-.45 1-1s-.45-1-1-1H2c-.55 0-1 .45-1 1s.45 1 1 1zm18 0h2c.55 0 1-.45 1-1s-.45-1-1-1h-2c-.55 0-1 .45-1 1s.45 1 1 1zM11 2v2c0 .55.45 1 1 1s1-.45 1-1V2c0-.55-.45-1-1-1s-1 .45-1 1zm0 18v2c0 .55.45 1 1 1s1-.45 1-1v-2c0-.55-.45-1-1-1s-1 .45-1 1zM5.99 4.93c.39-.39.39-1.02 0-1.41-.39-.39-1.02-.39-1.41 0l-1.41 1.41c-.39.39-.39 1.02 0 1.41.39.39 1.02.39 1.41 0l1.41-1.41zm13.42 13.42c-.39.39-.39 1.02 0 1.41l1.41 1.41c.39.39 1.02.39 1.41 0 .39-.39.39-1.02 0-1.41l-1.41-1.41c-.39-.39-1.02-.39-1.41 0zM5.99 19.07l-1.41 1.41c-.39.39-.39 1.02 0 1.41.39.39 1.02.39 1.41 0l1.41-1.41c.39-.39.39-1.02 0-1.41-.39-.39-1.02-.39-1.41 0zm12.02-13.13c-.39-.39-1.02-.39-1.41 0-.39.39-.39 1.02 0 1.41l1.41 1.41c.39.39 1.02.39 1.41 0 .39-.39.39-1.02 0-1.41l-1.41-1.41z"/></svg>
-            <svg id="icon-moon" viewBox="0 0 24 24"><path d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9c0-.46-.04-.92-.1-1.36-.98 1.37-2.58 2.26-4.4 2.26-3.03 0-5.5-2.47-5.5-5.5 0-1.82.89-3.42 2.26-4.4-.44-.06-.9-.1-1.36-.1z"/></svg>
-        </button>
+<div class="app-container">
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <button class="menu-btn ripple-target" onclick="toggleSidebar()">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
+            </button>
+        </div>
+
+        <div class="sidebar-content">
+            <button class="new-chat-btn ripple-target" onclick="createNewGame()">
+                <span class="plus-icon">+</span>
+                <span data-i18n="newChat">New chat</span>
+            </button>
+
+            <div class="history-section-title" data-i18n="recent">Recent</div>
+            <div class="history-list" id="history-list"></div>
+
+            <div class="settings-area">
+                <button class="settings-btn ripple-target" id="settings-trigger" onclick="showSettingsMenu(event)">
+                    <svg class="icon-svg" viewBox="0 0 24 24"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.09a2 2 0 0 1-1-1.74v-.47a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+                    <span data-i18n="settings">Settings</span>
+                </button>
+            </div>
+        </div>
+    </aside>
+    
+    <div class="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+    <main class="main-area">
+        <div class="main-header">
+            <button class="mobile-toggle" onclick="toggleSidebar()">
+                 <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
+            </button>
+            <div class="project-title">
+                Math Enigma Pro
+            </div>
+        </div>
+
+        <div class="chat-scroll" id="chat-box"></div>
+
+        <div class="input-area">
+            <div class="input-wrapper">
+                <textarea class="chat-input" id="user-input" placeholder="Ask Math Enigma..." rows="1"></textarea>
+            </div>
+            <button class="send-btn ripple-target" id="send-btn" onclick="sendMessage()">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+            </button>
+        </div>
+    </main>
+</div>
+
+<div class="popover-menu" id="settings-menu">
+    <div class="menu-option ripple-target" onclick="openThemeModal()">
+        <svg class="icon-svg" viewBox="0 0 24 24"><circle cx="13.5" cy="6.5" r=".5"/><circle cx="17.5" cy="10.5" r=".5"/><circle cx="8.5" cy="7.5" r=".5"/><circle cx="6.5" cy="12.5" r=".5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.55 0 1-.45 1-1 0-.28-.11-.53-.29-.71-.2-.2-.29-.46-.29-.71 0-.55.45-1 1-1h.5c1.1 0 2-.9 2-2v-1.5c0-.83.67-1.5 1.5-1.5S19 7.67 19 8.5V9c0 .55.45 1 1 1h1c.55 0 1-.45 1-1 0-5.5-4.5-10-10-10z"/></svg>
+        <span data-i18n="theme">Theme</span>
     </div>
-
-    <div id="plot-wrapper"><div id="plot-area"></div></div>
-
-    <div class="formula-wrapper" id="formula-container">
-        <div id="latex"></div>
-        <button class="copy-btn" onclick="copyToClipboard()">
-            <svg id="icon-copy" viewBox="0 0 24 24"><path d="M16 1H8C6.34 1 5 2.34 5 4v16c0 1.66 1.34 3 3 3h8c1.66 0 3-1.34 3-3V4c0-1.66-1.34-3-3-3zm-2 5h-4V4h4v2z"/></svg>
-            <svg id="icon-check" viewBox="0 0 24 24" style="display:none;"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
-        </button>
+    <div class="menu-option ripple-target" onclick="toggleLanguage()">
+        <svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+        <span data-i18n="language">Language (En)</span>
     </div>
+    <div class="menu-option ripple-target" onclick="openApiModal()">
+        <svg class="icon-svg" viewBox="0 0 24 24"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+        <span data-i18n="api">API Settings</span>
+    </div>
+    <div class="menu-separator"></div>
+    <div class="menu-option ripple-target" onclick="showRules()">
+        <svg class="icon-svg" viewBox="0 0 24 24"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>
+        <span data-i18n="rules">Rules</span>
+    </div>
+    <a href="https://cichlider.github.io/Math-Enigma/" target="_blank" class="menu-option ripple-target">
+        <svg class="icon-svg" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+        <span>Web</span>
+    </a>
+</div>
 
-    <button id="btn" class="main-btn" onclick="run()">GENERATE</button>
+<div class="popover-menu" id="context-menu">
+    <div class="menu-option ripple-target" onclick="handleMenuAction('rename')">
+        <svg class="icon-svg" viewBox="0 0 24 24"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+        <span>Rename</span>
+    </div>
+    <div class="menu-option ripple-target" onclick="handleMenuAction('pin')">
+        <svg class="icon-svg" viewBox="0 0 24 24"><path d="M21.41 11.58l-9-9C12.05 2.22 11.55 2 11 2H4c-1.1 0-2 .9-2 2v7c0 .55.22 1.05.59 1.42l9 9c.36.36.86.58 1.41.58.55 0 1.05-.22 1.41-.59l7-7c.37-.36.59-.86.59-1.41 0-.55-.23-1.06-.59-1.42zM5.5 7C4.67 7 4 6.33 4 5.5S4.67 4 5.5 4 7 4.67 7 5.5 6.33 7 5.5 7z"/></svg>
+        <span>Pin</span>
+    </div>
+    <div class="menu-option danger ripple-target" onclick="handleMenuAction('delete')">
+        <svg class="icon-svg" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+        <span>Delete</span>
+    </div>
+</div>
 
-    <footer>&copy; 2025 Math Enigma. Designed by Cichlider.</footer>
+<div class="modal" id="theme-modal">
+    <div class="modal-box">
+        <h3 data-i18n="themeTitle">Select Theme</h3>
+        <div class="theme-grid">
+            <div class="theme-btn selected" onclick="setTheme('dark', this)">Dark</div>
+            <div class="theme-btn" onclick="setTheme('light', this)">Light</div>
+            <div class="theme-btn" onclick="setTheme('midnight', this)">Midnight</div>
+            <div class="theme-btn" onclick="setTheme('forest', this)">Forest</div>
+        </div>
+        <div class="modal-btns">
+            <button class="btn btn-primary ripple-target" onclick="closeThemeModal()" data-i18n="close">Close</button>
+        </div>
+    </div>
+</div>
 
-    <script>
-        // ================= Core Logic =================
-        class Node { toExec(){return""} toPlot(){return""} toLatex(){return""} }
-        class Atom extends Node { constructor(v,p,e,l){super();this.val=v;this.plotVal=p||v;this.execVal=e||v;this.latexVal=l||v;} toPlot(){return this.plotVal} toExec(){return this.execVal} toLatex(){return this.latexVal} }
-        class Var extends Node { toPlot(){return"x"} toExec(){return"x"} toLatex(){return"x"} }
-        class UnaryOp extends Node { constructor(o,c){super();this.op=o;this.child=c} toPlot(){if(this.op==="ln")return `log(abs(${this.child.toPlot()})+0.001)`;if(this.op==="sqrt")return `sqrt(abs(${this.child.toPlot()}))`;return `${this.op}(${this.child.toPlot()})`} toExec(){if(this.op==="ln")return `Math.log(Math.abs(${this.child.toExec()})+0.001)`;if(this.op==="sqrt")return `Math.sqrt(Math.abs(${this.child.toExec()}))`;if(this.op==="exp")return `Math.exp(${this.child.toExec()})`;return `Math.${this.op}(${this.child.toExec()})`} toLatex(){if(this.op==="ln")return `\\ln(|${this.child.toLatex()}|)`;if(this.op==="sqrt")return `\\sqrt{|${this.child.toLatex()}|}`;if(this.op==="exp")return `e^{${this.child.toLatex()}}`;return `\\${this.op}(${this.child.toLatex()})`} }
-        class BinaryOp extends Node { 
-            constructor(o,l,r){super();this.op=o;this.left=l;this.right=r} 
-            toPlot(){return `(${this.left.toPlot()}${this.op}${this.right.toPlot()})`} 
-            toExec(){return `(${this.left.toExec()}${this.op}${this.right.toExec()})`} 
-            toLatex(){
-                if(this.op==="/")return `\\frac{${this.left.toLatex()}}{${this.right.toLatex()}}`;
-                if(this.op==="*")return `${this.left.toLatex()} \\cdot ${this.right.toLatex()}`;
-                return `${this.left.toLatex()} ${this.op} ${this.right.toLatex()}`;
-            } 
+<div class="modal" id="api-modal">
+    <div class="modal-box">
+        <h3 data-i18n="apiTitle">API Settings</h3>
+        <label>API Key (Google AI Studio / OpenAI)</label>
+        <input type="password" id="api-key" placeholder="AIza... or sk-...">
+        <label>Base URL (Default: Google)</label>
+        <input type="text" id="api-url" value="https://generativelanguage.googleapis.com">
+        <label>Model</label>
+        <input type="text" id="api-model" value="gemini-1.5-flash">
+        <div class="modal-btns">
+            <button class="btn btn-text ripple-target" onclick="closeApiModal()" data-i18n="cancel">Cancel</button>
+            <button class="btn btn-primary ripple-target" onclick="saveApiSettings()" data-i18n="save">Save</button>
+        </div>
+    </div>
+</div>
+
+<script>
+/* === 1. 核心配置与状态 === */
+    const i18n = {
+        en: { newChat: "New Chat", recent: "Recent", settings: "Settings", language: "Language (Zh)", api: "API Settings", rules: "Rules", apiTitle: "API Settings", theme:"Theme", themeTitle:"Select Theme", cancel: "Cancel", save: "Save", close:"Close", placeholder: "Ask Math Enigma..." },
+        zh: { newChat: "新对话", recent: "历史记录", settings: "设置", language: "语言 (En)", api: "API 设置", rules: "游戏规则", apiTitle: "API 配置", theme:"外观", themeTitle:"选择主题", cancel: "取消", save: "保存", close:"关闭", placeholder: "输入你的猜测..." }
+    };
+
+    let currentTheme = 'dark';
+    let currentLang = 'en';
+    let games = [];
+    let currentGameId = null;
+    let contextMenuTargetId = null;
+    let apiConfig = { key: '', url: 'https://generativelanguage.googleapis.com', model: 'gemini-1.5-flash' };
+
+    /* === 2. 移植过来的数学引擎 (AST Logic) === */
+    // 这里的类和逻辑直接源自你提供的代码，用于生成随机函数
+    class Node { toExec(){return""} toPlot(){return""} toLatex(){return""} }
+    class Atom extends Node { constructor(v,p,e,l){super();this.val=v;this.plotVal=p||v;this.execVal=e||v;this.latexVal=l||v;} toPlot(){return this.plotVal} toExec(){return this.execVal} toLatex(){return this.latexVal} }
+    class Var extends Node { toPlot(){return"x"} toExec(){return"x"} toLatex(){return"x"} }
+    class UnaryOp extends Node { 
+        constructor(o,c){super();this.op=o;this.child=c} 
+        toPlot(){if(this.op==="ln")return `log(abs(${this.child.toPlot()})+0.001)`;if(this.op==="sqrt")return `sqrt(abs(${this.child.toPlot()}))`;return `${this.op}(${this.child.toPlot()})`} 
+        toExec(){if(this.op==="ln")return `Math.log(Math.abs(${this.child.toExec()})+0.001)`;if(this.op==="sqrt")return `Math.sqrt(Math.abs(${this.child.toExec()}))`;if(this.op==="exp")return `Math.exp(${this.child.toExec()})`;return `Math.${this.op}(${this.child.toExec()})`} 
+        toLatex(){if(this.op==="ln")return `\\ln(|${this.child.toLatex()}|)`;if(this.op==="sqrt")return `\\sqrt{|${this.child.toLatex()}|}`;if(this.op==="exp")return `e^{${this.child.toLatex()}}`;return `\\${this.op}(${this.child.toLatex()})`} 
+    }
+    class BinaryOp extends Node { 
+        constructor(o,l,r){super();this.op=o;this.left=l;this.right=r} 
+        toPlot(){return `(${this.left.toPlot()}${this.op}${this.right.toPlot()})`} 
+        toExec(){return `(${this.left.toExec()}${this.op}${this.right.toExec()})`} 
+        toLatex(){
+            if(this.op==="/")return `\\frac{${this.left.toLatex()}}{${this.right.toLatex()}}`;
+            if(this.op==="*")return `${this.left.toLatex()} \\cdot ${this.right.toLatex()}`;
+            return `${this.left.toLatex()} ${this.op} ${this.right.toLatex()}`;
+        } 
+    }
+
+    const ATOMS=[new Atom("2"),new Atom("3"),new Atom("pi","PI","Math.PI","\\pi"),new Atom("e","E","Math.E","e")];
+    const OPS_UNARY=["sin","cos","ln","sqrt","exp"]; 
+    const OPS_BINARY=["+","-","*","/"];
+    function randInt(n){return Math.floor(Math.random()*n)}
+
+    function generateAST(depth,forceVar){
+        if(depth<=0){return forceVar?new Var():(Math.random()<0.4?new Var():ATOMS[randInt(ATOMS.length)])}
+        const r=Math.random();
+        if(r<0.15&&!forceVar){return Math.random()<0.5?new Var():ATOMS[randInt(ATOMS.length)]}
+        else if(r<0.65){return new UnaryOp(OPS_UNARY[randInt(OPS_UNARY.length)],generateAST(depth-1,forceVar))}
+        else{let op=OPS_BINARY[randInt(OPS_BINARY.length)],lf=false,rf=false;if(forceVar)Math.random()<0.5?lf=true:rf=true;return new BinaryOp(op,generateAST(depth-1,lf),generateAST(Math.max(0,depth-2),rf))}
+    }
+
+    function generateValidFunction() {
+        let ast = null, data = null, i = 0;
+        // 尝试生成最多200次，直到找到一个合法的函数
+        while(!data && i < 200) {
+            try { 
+                ast = generateAST(Math.floor(Math.random()*3)+2, true); 
+                data = validate(ast); 
+            } catch(err) {}
+            i++;
         }
+        // 如果生成失败，返回兜底函数
+        if (!data) return { latexString: "\\sin(x) + x", execString: "Math.sin(x) + x" };
+        return { latexString: ast.toLatex(), execString: ast.toExec() };
+    }
 
-        const ATOMS=[new Atom("2"),new Atom("3"),new Atom("pi","PI","Math.PI","\\pi"),new Atom("e","E","Math.E","e")];
-        const OPS_UNARY=["sin","cos","ln","sqrt","exp"]; const OPS_BINARY=["+","-","*","/"];
-        function randInt(n){return Math.floor(Math.random()*n)}
+    function validate(ast){
+        const code=ast.toExec();
+        let func; try{func=new Function("x",`return ${code};`)}catch(e){return null}
+        const pts=[-4,-2,-0.5,0.5,2,4,3.14],res=[];
+        for(let x of pts){let y=func(x);if(isFinite(y)&&!isNaN(y))res.push({x,y})}
+        if(res.length<5)return null; // 大部分点无效
+        const ys=res.map(p=>p.y),range=Math.max(...ys)-Math.min(...ys);
+        if(range<0.001)return null; // 常数函数
+        // 简单的线性检测过滤，避免过于简单的 y=x
+        return true;
+    }
 
-        function generateAST(depth,forceVar){
-            if(depth<=0){return forceVar?new Var():(Math.random()<0.4?new Var():ATOMS[randInt(ATOMS.length)])}
-            const r=Math.random();
-            if(r<0.15&&!forceVar){return Math.random()<0.5?new Var():ATOMS[randInt(ATOMS.length)]}
-            else if(r<0.65){return new UnaryOp(OPS_UNARY[randInt(OPS_UNARY.length)],generateAST(depth-1,forceVar))}
-            else{let op=OPS_BINARY[randInt(OPS_BINARY.length)],lf=false,rf=false;if(forceVar)Math.random()<0.5?lf=true:rf=true;return new BinaryOp(op,generateAST(depth-1,lf),generateAST(Math.max(0,depth-2),rf))}
-        }
+    /* === 3. UI 工具函数 === */
+    function hexToRgb(hex) { const b = parseInt(hex.replace('#',''),16); return [(b>>16)&255, (b>>8)&255, b&255]; }
+    function interpolateColor(c1, c2, f) { const r = c1.slice(); for(let i=0;i<3;i++) r[i] = Math.round(r[i]+f*(c2[i]-c1[i])); return `rgb(${r[0]},${r[1]},${r[2]})`; }
+    function updateBubbleColors() {
+        const bubbles = document.querySelectorAll('.message-row.me .bubble');
+        const count = bubbles.length;
+        if(count===0) return;
+        const style = getComputedStyle(document.body);
+        const start = hexToRgb(style.getPropertyValue('--gradient-start').trim());
+        const end = hexToRgb(style.getPropertyValue('--gradient-end').trim());
+        bubbles.forEach((b, i) => {
+            let f = count > 1 ? (count - 1 - i) / (count - 1) : 0;
+            b.style.backgroundColor = interpolateColor(start, end, Math.min(f,1));
+        });
+    }
 
-        function validate(ast){
-            const code=ast.toExec();
-            let func; try{func=new Function("x",`return ${code};`)}catch(e){return null}
-            const pts=[-4,-2,-0.5,0.5,2,4,3.14],res=[];
-            for(let x of pts){let y=func(x);if(isFinite(y)&&!isNaN(y))res.push({x,y})}
-            if(res.length<5)return null;
-            const ys=res.map(p=>p.y),range=Math.max(...ys)-Math.min(...ys);
-            if(range<0.001)return null;
-            if(res.every(p=>Math.abs(p.y-p.x)<0.1)||res.every(p=>Math.abs(p.y+p.x)<0.1))return null;
-            const mid=(Math.max(...ys)+Math.min(...ys))/2,span=Math.max(range*1.5,10);
-            return {yDomain:[mid-span/2,mid+span/2],plotString:ast.toPlot(),latexString:ast.toLatex()};
-        }
+    window.onload = () => {
+        initRipple();
+        loadSettings();
+        loadGames();
+        updateLanguageUI();
+        if(games.length===0) createNewGame(); else switchGame(games[0].id);
+        document.addEventListener('click', e => {
+            if(!e.target.closest('#settings-trigger') && !e.target.closest('#settings-menu')) closeSettingsMenu();
+            if(!e.target.closest('.kebab-menu-btn') && !e.target.closest('#context-menu')) document.getElementById('context-menu').classList.remove('show');
+        });
+    };
 
-        // ================= UI Logic =================
-        function setTheme(theme) {
-            document.documentElement.setAttribute('data-theme', theme);
-            localStorage.setItem('theme', theme);
-            document.getElementById('icon-sun').style.display = theme==='light'?'none':'block';
-            document.getElementById('icon-moon').style.display = theme==='light'?'block':'none';
-        }
-        function toggleTheme() { setTheme(document.documentElement.getAttribute('data-theme')==='light'?'dark':'light'); }
-        function initTheme() { setTheme(localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')); }
+    function toggleSidebar() { const sb=document.getElementById('sidebar'); if(window.innerWidth<=768) sb.classList.toggle('show'); else sb.classList.toggle('collapsed'); }
+    function openThemeModal() { closeSettingsMenu(); document.getElementById('theme-modal').classList.add('active'); }
+    function closeThemeModal() { document.getElementById('theme-modal').classList.remove('active'); }
+    function setTheme(name, btn) {
+        document.body.classList.remove('theme-light','theme-midnight','theme-forest');
+        document.querySelectorAll('.theme-btn').forEach(b=>b.classList.remove('selected'));
+        if(name!=='dark') document.body.classList.add(`theme-${name}`);
+        btn.classList.add('selected'); currentTheme=name; setTimeout(updateBubbleColors,100);
+    }
+    function initRipple() {
+        document.addEventListener('mousedown', e => {
+            if(e.target.closest('.kebab-menu-btn')) return;
+            const t = e.target.closest('.ripple-target');
+            if(!t) return;
+            const r = t.getBoundingClientRect(), size = Math.max(r.width, r.height);
+            const rip = document.createElement('span');
+            rip.className = 'ripple';
+            rip.style.width = rip.style.height = `${size}px`;
+            rip.style.left = `${e.clientX - r.left - size/2}px`;
+            rip.style.top = `${e.clientY - r.top - size/2}px`;
+            t.appendChild(rip);
+            setTimeout(()=>rip.remove(),600);
+        });
+    }
+
+    function renderChat() {
+        const box = document.getElementById('chat-box'); box.innerHTML='';
+        const game = games.find(g=>g.id===currentGameId);
+        if(!game) return;
+        game.messages.forEach(msg => appendMessage(msg.sender, msg.text, false));
+        scrollToBottom();
+        requestAnimationFrame(updateBubbleColors);
+    }
+
+    function appendMessage(sender, text, animate = true) {
+        const box = document.getElementById('chat-box');
+        const row = document.createElement('div');
+        row.className = `message-row ${sender}`;
+        const bubble = document.createElement('div');
+        bubble.className = `bubble ${sender}`;
+        if(text.startsWith("❌")) bubble.classList.add('error');
+        bubble.innerHTML = marked.parse(text);
+        row.appendChild(bubble);
+        box.appendChild(row);
+        if(window.MathJax) MathJax.typesetPromise([bubble]);
+        if(animate) scrollToBottom();
+        if(sender==='me') requestAnimationFrame(updateBubbleColors);
+    }
+
+    /* === 4. 游戏逻辑 (融合了生成器) === */
+    function createNewGame() {
+        const newId = Date.now();
+        const name = currentLang === 'en' ? "New Chat" : "新对话";
         
-        let currentLatex="", currentData=null;
-        function copyToClipboard() {
-            if(!currentLatex)return;
-            // 复制纯 LaTeX 代码
-            navigator.clipboard.writeText(currentLatex).then(()=>{
-                document.getElementById('icon-copy').style.display='none';
-                document.getElementById('icon-check').style.display='block';
-                setTimeout(()=>{document.getElementById('icon-copy').style.display='block';document.getElementById('icon-check').style.display='none';},1500);
-            });
-        }
-        function drawPlot(data) {
-            if (!window.functionPlot) return;
-            const wrapper = document.getElementById('plot-wrapper');
-            try {
-                functionPlot({
-                    target: '#plot-area',
-                    width: wrapper.clientWidth, height: wrapper.clientHeight,
-                    yAxis: { domain: data.yDomain }, xAxis: { domain: [-6, 6] },
-                    grid: true, data: [{ fn: data.plotString, nSamples: 2000, graphType: 'polyline' }],
-                    disableZoom: true
-                });
-            } catch(e) { console.error(e); }
-        }
+        // 1. 调用移植过来的数学引擎生成函数
+        const generated = generateValidFunction();
+        
+        // 2. 构建 System Prompt (汤底)
+        const soup = `
+[SYSTEM INSTRUCTION: MATH ENIGMA HOST]
+**HIDDEN FUNCTION**: $$ f(x) = ${generated.latexString} $$
 
-        function run() {
-            const btn = document.getElementById('btn');
-            const plotDiv = document.getElementById('plot-area');
-            const formDiv = document.getElementById('formula-container');
-            const latexDiv = document.getElementById('latex');
-            const body = document.body;
+**GAME RULES**:
+1. You are the host. The user must guess the function $f(x)$.
+2. If user inputs a number (e.g. "x=2"), calculate the result using the function and return ONLY the number.
+3. If user asks a property (e.g. "Is it periodic?"), answer strictly "Yes" or "No" based on the math.
+4. DO NOT reveal the formula unless the user guesses it correctly.
+5. If the user asks for a hint, give a subtle mathematical hint.
+6. IMPORTANT: DO NOT output your internal thought process (e.g., [THOUGHT] or <think>). Output ONLY the final answer to the user.
+7. 尽量简答。
+`;
 
-            btn.disabled = true;
-            plotDiv.classList.remove('show');
-            formDiv.classList.remove('show');
-            body.classList.remove('meme-mode');
+        games.unshift({ id: newId, time: new Date().toLocaleTimeString(), name, pinned: false, messages: [], soup });
+        saveGames(); renderHistory();
+        
+        const first = document.querySelector('.history-item');
+        if(first) first.classList.add('entering');
+        
+        switchGame(newId);
+        
+        // 发送开场白，此时函数已经是刚才生成的了
+        setTimeout(() => appendMessage('them', currentLang==='en' 
+            ? "**Math Enigma Started.**\nI have generated a random function $f(x)$ using your local engine. Guess it!" 
+            : "**海龟汤已开锅**\n我已经用本地引擎生成了一个随机函数 $f(x)$。来猜猜看！", true), 500);
+    }
 
-            setTimeout(() => {
-                try {
-                    let data = null;
-                    if (Math.random() < 0.001) {
-                        body.classList.add('meme-mode');
-                        data = {plotString:"sin(x)+114514",latexString:"\\sin(x)+114514",yDomain:[114513,114515]};
-                    } else {
-                        let ast=null, i=0;
-                        while(!data && i<200) {
-                            try { ast = generateAST(Math.floor(Math.random()*3)+2, true); data = validate(ast); } catch(err) {}
-                            i++;
-                        }
-                        if (!data) data = {plotString:"sin(x)",latexString:"\\sin(x)",yDomain:[-2,2]};
-                    }
+    function switchGame(id) {
+        currentGameId = id; renderHistory(); renderChat();
+        if(window.innerWidth<=768) document.getElementById('sidebar').classList.remove('show');
+    }
+    
+/* === 新增：清洗 AI 回复中的思维过程 === */
+    function cleanAIResponse(text) {
+        if (!text) return "";
+        
+        // 1. 去除 [THOUGHT]: 开头的思维块 (一直匹配到双换行或结尾)
+        text = text.replace(/\[THOUGHT\]:[\s\S]*?(\n\n|$)/gi, "");
+        
+        // 2. 去除 <think>...</think> 标签 (DeepSeek R1 等推理模型常见格式)
+        text = text.replace(/<think>[\s\S]*?<\/think>/gi, "");
+        
+        // 3. 去除可能残留的 "Thinking Process:" 等字样
+        text = text.replace(/^Thinking Process:[\s\S]*?(\n\n|$)/gi, "");
 
-                    currentLatex = data.latexString;
-                    currentData = data;
-                    
-                    // 【核心修改】使用 align 风格渲染 (displaystyle + aligned)
-                    // \displaystyle 强制分数和积分符号变大
-                    // \begin{aligned} ... \end{aligned} 提供优美的对齐和间距
-                    katex.render(`\\displaystyle \\begin{aligned} f(x) &= ${data.latexString} \\end{aligned}`, latexDiv, {
-                        throwOnError: false,
-                        displayMode: true // 开启显示模式
-                    });
-                    
-                    drawPlot(data);
+        // 4. 去除首尾空格
+        return text.trim();
+    }
 
-                    plotDiv.classList.add('show');
-                    formDiv.classList.add('show');
-
-                } catch (e) { console.error(e); } 
-                finally { btn.disabled = false; }
-            }, 600);
+    async function sendMessage() {
+        const input = document.getElementById('user-input');
+        const text = input.value.trim();
+        if(!text) return;
+        if(!apiConfig.key) { 
+            alert(currentLang==='en'?"Please set API Key first":"请先配置 API Key");
+            openApiModal(); return; 
         }
 
-        window.addEventListener('resize', () => { if(currentData) drawPlot(currentData); });
-        window.onload = function() { initTheme(); setTimeout(run, 500); };
-    </script>
+        input.value=''; input.style.height='auto';
+        document.getElementById('send-btn').classList.remove('active');
+        
+        const game = games.find(g=>g.id===currentGameId);
+        game.messages.push({ sender:'me', text });
+        if(game.messages.filter(m=>m.sender==='me').length === 1) game.name = text.slice(0,18);
+        saveGames(); renderHistory(); appendMessage('me', text);
+
+        const loadingId = 'loading-'+Date.now();
+        const row = document.createElement('div');
+        row.className = 'message-row them';
+        row.id = loadingId;
+        row.innerHTML = `<div class="bubble them"><div class="spinner"></div></div>`;
+        document.getElementById('chat-box').appendChild(row);
+        scrollToBottom();
+
+        try {
+            const rawReply = await callLLM(text, game);
+            document.getElementById(loadingId).remove();
+
+            // === 核心修改：清洗回复 ===
+            let cleanReply = cleanAIResponse(rawReply);
+            
+            // 如果清洗后为空（说明AI只输出了思考过程，没给结果），则强行保留最后一行或显示原始内容
+            if (!cleanReply) cleanReply = rawReply.split('\n').pop() || "Yes."; 
+
+            game.messages.push({ sender:'them', text: cleanReply });
+            saveGames(); 
+            appendMessage('them', cleanReply);
+        } catch (e) {
+            document.getElementById(loadingId).remove();
+            appendMessage('them', `❌ API Error: ${e.message}`);
+        }
+    }
+
+    /* === 5. API 引擎 === */
+    async function callLLM(userText, game) {
+        const url = apiConfig.url.trim();
+        const model = apiConfig.model.trim();
+        const apiKey = apiConfig.key.trim();
+        const systemPrompt = game.soup;
+
+        if (url.includes('goog') && url.includes('generativelanguage')) {
+            return await fetchGeminiNative(userText, game, apiKey, model, systemPrompt);
+        }
+        
+        let endpoint = url;
+        if (!endpoint.endsWith('/v1/chat/completions') && !endpoint.endsWith('/chat/completions')) {
+             endpoint = endpoint.replace(/\/$/, "") + "/chat/completions";
+        }
+        return await fetchOpenAICompatible(userText, game, apiKey, model, systemPrompt, endpoint);
+    }
+
+    async function fetchOpenAICompatible(text, game, key, model, system, endpoint) {
+        const messages = [{ role: 'system', content: system }];
+        game.messages.forEach(m => {
+            if (m.text !== text) messages.push({ role: m.sender === 'me' ? 'user' : 'assistant', content: m.text });
+        });
+        messages.push({ role: 'user', content: text });
+
+        const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` },
+            body: JSON.stringify({ model: model, messages: messages, temperature: 0.7 })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error?.message || data.message || res.statusText);
+        return data.choices?.[0]?.message?.content || "No content";
+    }
+
+    async function fetchGeminiNative(text, game, key, model, system) {
+        const cleanModel = model.replace(/^models\//, '');
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${cleanModel}:generateContent?key=${key}`;
+        const contents = [];
+        let lastRole = null;
+
+        game.messages.forEach(m => {
+            if (m.text === text) return;
+            const currentRole = m.sender === 'me' ? 'user' : 'model';
+            if (currentRole === lastRole) contents[contents.length - 1].parts[0].text += "\n" + m.text;
+            else { contents.push({ role: currentRole, parts: [{ text: m.text }] }); lastRole = currentRole; }
+        });
+        if (lastRole === 'user') contents[contents.length - 1].parts[0].text += "\n" + text;
+        else contents.push({ role: 'user', parts: [{ text: text }] });
+
+        const payload = { contents: contents, systemInstruction: { parts: [{ text: system }] }, generationConfig: { temperature: 0.7 } };
+        const res = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error?.message || res.statusText);
+        return data.candidates?.[0]?.content?.parts?.[0]?.text || "No content";
+    }
+
+    /* === 6. 辅助功能 === */
+    function renderHistory() {
+        const list = document.getElementById('history-list'); list.innerHTML='';
+        const sorted = [...games].sort((a,b)=>(a.pinned===b.pinned)?b.id-a.id:(a.pinned?-1:1));
+        sorted.forEach(g => {
+            const div = document.createElement('div');
+            div.className = `history-item ripple-target ${g.id===currentGameId?'active':''}`;
+            div.onclick = (e) => { if(!e.target.closest('.kebab-menu-btn')) switchGame(g.id); };
+            const pin = g.pinned ? '<span class="pinned-icon">📌</span>' : '';
+            div.innerHTML = `<span class="item-text">${pin}${g.name||g.time}</span><button class="kebab-menu-btn" onmousedown="event.stopPropagation()" onclick="showContextMenu(event, ${g.id})">⋮</button>`;
+            list.appendChild(div);
+        });
+    }
+
+    function showSettingsMenu(e) { e.stopPropagation(); const m=document.getElementById('settings-menu'), b=document.getElementById('settings-trigger'), r=b.getBoundingClientRect(); m.style.bottom=`${window.innerHeight-r.top}px`; m.style.left=`${r.left}px`; if(m.classList.contains('show')) closeSettingsMenu(); else { m.classList.add('show'); b.classList.add('active'); } }
+    function closeSettingsMenu() { document.getElementById('settings-menu').classList.remove('show'); document.getElementById('settings-trigger').classList.remove('active'); }
+    function showContextMenu(e, id) { e.stopPropagation(); contextMenuTargetId=id; const m=document.getElementById('context-menu'), r=e.target.getBoundingClientRect(); m.style.top=`${r.bottom}px`; m.style.left=`${r.left}px`; m.classList.add('show'); }
+    function handleMenuAction(a) { const i=games.findIndex(g=>g.id===contextMenuTargetId); if(i===-1)return; const g=games[i]; if(a==='delete'&&confirm(`Delete?`)) { games.splice(i,1); if(currentGameId===contextMenuTargetId) { currentGameId=games.length?games[0].id:null; renderChat(); } saveGames(); renderHistory(); } else if(a==='rename') { const n=prompt("Name:", g.name); if(n) { g.name=n; saveGames(); renderHistory(); } } else if(a==='pin') { g.pinned=!g.pinned; saveGames(); renderHistory(); } document.getElementById('context-menu').classList.remove('show'); }
+    function toggleLanguage() { currentLang = currentLang==='en'?'zh':'en'; updateLanguageUI(); }
+    function updateLanguageUI() { document.querySelectorAll('[data-i18n]').forEach(el => { const k=el.getAttribute('data-i18n'); if(i18n[currentLang][k]) el.innerText=i18n[currentLang][k]; }); document.getElementById('user-input').placeholder = i18n[currentLang].placeholder; }
+    function showRules() { alert(currentLang==='en' ? "Rules: Guess the function generated by the local engine." : "规则：猜猜本地引擎生成的随机函数。"); }
+    function openApiModal() { closeSettingsMenu(); document.getElementById('api-modal').classList.add('active'); }
+    function closeApiModal() { document.getElementById('api-modal').classList.remove('active'); }
+    function saveApiSettings() { apiConfig.key = document.getElementById('api-key').value.trim(); apiConfig.url = document.getElementById('api-url').value.trim(); apiConfig.model = document.getElementById('api-model').value.trim(); if(!apiConfig.url) apiConfig.url="https://generativelanguage.googleapis.com"; localStorage.setItem('math_api_config', JSON.stringify(apiConfig)); closeApiModal(); }
+    function saveGames() { localStorage.setItem('math_games_v3', JSON.stringify(games)); }
+    function loadGames() { const s=localStorage.getItem('math_games_v3'); if(s) games=JSON.parse(s); }
+    function loadSettings() { const s=localStorage.getItem('math_api_config'); if(s) { apiConfig=JSON.parse(s); document.getElementById('api-key').value=apiConfig.key; document.getElementById('api-url').value=apiConfig.url; document.getElementById('api-model').value=apiConfig.model; } }
+    function scrollToBottom() { const b=document.getElementById('chat-box'); b.scrollTop=b.scrollHeight; }
+    const inp = document.getElementById('user-input');
+    inp.addEventListener('input', function() { this.style.height='auto'; this.style.height=this.scrollHeight+'px'; const btn=document.getElementById('send-btn'); if(this.value.trim()) btn.classList.add('active'); else btn.classList.remove('active'); });
+    inp.addEventListener('keydown', e => { if(e.key==='Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } });
+</script>
 </body>
 </html>
