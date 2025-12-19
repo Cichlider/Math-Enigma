@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Math Enigma | 数学海龟汤</title>
+    
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script src="https://unpkg.com/d3@3/d3.min.js"></script>
+    <script src="https://unpkg.com/function-plot@1/dist/function-plot.js"></script>
+
+    <style>
+        :root { --bg: #050505; --text: #666; --line: #fff; --accent: #888; }
+        body { margin: 0; background: var(--bg); color: var(--text); font-family: sans-serif; height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; user-select: none; }
+        
+        #plot-area { width: 100%; max-width: 700px; height: 450px; opacity: 0; transition: opacity 0.5s; margin-bottom: 20px;}
+        #plot-area.show { opacity: 1; }
+        
+        /* 绘图样式 */
+        .function-plot text { fill: #555 !important; font-size: 10px; font-family: monospace; }
+        .function-plot .domain { stroke: #444 !important; stroke-width: 1px; }
+        .function-plot .tick line { stroke: #222 !important; }
+        .function-plot path.line { stroke: var(--line) !important; stroke-width: 2px !important; filter: drop-shadow(0 0 8px rgba(255,255,255,0.3)); }
+
+        /* 公式容器：Flex布局，为了放复制按钮 */
+        .formula-wrapper {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px; /* 按钮和公式的间距 */
+            min-height: 60px;
+            margin-bottom: 30px;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: all 0.5s;
+        }
+        .formula-wrapper.show { opacity: 1; transform: translateY(0); }
+
+        #latex { font-size: 1.8rem; color: #ddd; }
+
+        /* 复制按钮样式 - 极简风 */
+        .copy-btn {
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 4px;
+            opacity: 0.3; /* 平时很淡 */
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .copy-btn:hover { opacity: 1; background: rgba(255,255,255,0.05); }
+        .copy-btn:active { transform: scale(0.9); }
+        .copy-btn svg { width: 20px; height: 20px; fill: #fff; }
+
+        /* 主生成按钮 */
+        .main-btn { background: transparent; border: 1px solid #333; color: #888; padding: 12px 40px; border-radius: 4px; cursor: pointer; letter-spacing: 2px; transition: 0.2s; }
+        .main-btn:hover { color: #fff; border-color: #888; box-shadow: 0 0 15px rgba(255,255,255,0.05); }
+        .main-btn:disabled { opacity: 0.3; cursor: wait; transform: none; box-shadow: none;}
+
+        /* 彩蛋触发时的特殊提示样式 (可选) */
+        .meme-mode #latex { color: #f39c12; text-shadow: 0 0 10px rgba(243, 156, 18, 0.4); }
+    </style>
+</head>
+<body>
+
+    <div id="plot-area"></div>
+
+    <div class="formula-wrapper" id="formula-container">
+        <div id="latex"></div>
+        <button class="copy-btn" id="copy-btn" onclick="copyToClipboard()" title="Copy LaTeX">
+            <svg id="icon-copy" viewBox="0 0 24 24"><path d="M16 1H8C6.34 1 5 2.34 5 4v16c0 1.66 1.34 3 3 3h8c1.66 0 3-1.34 3-3V4c0-1.66-1.34-3-3-3zm-2 5h-4V4h4v2z"/></svg>
+            <svg id="icon-check" viewBox="0 0 24 24" style="display:none;"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+        </button>
+    </div>
+
+    <button id="btn" class="main-btn" onclick="run()">GENERATE</button>
+
+    <script>
+        // ================= AST 核心 (双语版) =================
+        class Node {
+            toExec() { return ""; } 
+            toPlot() { return ""; } 
+            toLatex() { return ""; } 
+        }
+
+        class Atom extends Node {
+            constructor(val, plotVal, execVal, latexVal) {
+                super();
+                this.val = val;
+                this.plotVal = plotVal || val;
+                this.execVal = execVal || val;
+                this.latexVal = latexVal || val;
+            }
+            toPlot() { return this.plotVal; }
+            toExec() { return this.execVal; }
+            toLatex() { return this.latexVal; }
+        }
+
+        class Var extends Node {
+            toPlot() { return "x"; }
+            toExec() { return "x"; }
+            toLatex() { return "x"; }
+        }
+
+        class UnaryOp extends Node {
+            constructor(op, child) { super(); this.op = op; this.child = child; }
+            toPlot() {
+                if (this.op === "ln") return `log(abs(${this.child.toPlot()}) + 0.001)`;
+                if (this.op === "sqrt") return `sqrt(abs(${this.child.toPlot()}))`;
+                return `${this.op}(${this.child.toPlot()})`;
+            }
+            toExec() {
+                if (this.op === "ln") return `Math.log(Math.abs(${this.child.toExec()}) + 0.001)`;
+                if (this.op === "sqrt") return `Math.sqrt(Math.abs(${this.child.toExec()}))`;
+                if (this.op === "exp") return `Math.exp(${this.child.toExec()})`;
+                return `Math.${this.op}(${this.child.toExec()})`;
+            }
+            toLatex() {
+                if (this.op === "ln") return `\\ln(|${this.child.toLatex()}|)`;
+                if (this.op === "sqrt") return `\\sqrt{|${this.child.toLatex()}|}`;
+                if (this.op === "exp") return `e^{${this.child.toLatex()}}`;
+                return `\\${this.op}(${this.child.toLatex()})`;
+            }
+        }
+
+        class BinaryOp extends Node {
+            constructor(op, left, right) { super(); this.op = op; this.left = left; this.right = right; }
+            toPlot() { return `(${this.left.toPlot()} ${this.op} ${this.right.toPlot()})`; }
+            toExec() { return `(${this.left.toExec()} ${this.op} ${this.right.toExec()})`; }
+            toLatex() {
+                if (this.op === "/") return `\\frac{${this.left.toLatex()}}{${this.right.toLatex()}}`;
+                if (this.op === "*") return `${this.left.toLatex()} \\cdot ${this.right.toLatex()}`;
+                return `${this.left.toLatex()} ${this.op} ${this.right.toLatex()}`;
+            }
+        }
+
+        const ATOMS = [
+            new Atom("2"), new Atom("3"),
+            new Atom("pi", "PI", "Math.PI", "\\pi"), 
+            new Atom("e", "E", "Math.E", "e")
+        ];
+        const OPS_UNARY = ["sin", "cos", "ln", "sqrt", "exp"];
+        const OPS_BINARY = ["+", "-", "*", "/"];
+
+        function randInt(n) { return Math.floor(Math.random() * n); }
+
+        function generateAST(depth, forceVar) {
+            if (depth <= 0) {
+                if (forceVar) return new Var();
+                return Math.random() < 0.4 ? new Var() : ATOMS[randInt(ATOMS.length)];
+            }
+            const r = Math.random();
+            if (r < 0.15 && !forceVar) {
+                return Math.random() < 0.5 ? new Var() : ATOMS[randInt(ATOMS.length)];
+            } else if (r < 0.65) {
+                const op = OPS_UNARY[randInt(OPS_UNARY.length)];
+                return new UnaryOp(op, generateAST(depth - 1, forceVar));
+            } else {
+                const op = OPS_BINARY[randInt(OPS_BINARY.length)];
+                let lForce = false, rForce = false;
+                if (forceVar) Math.random() < 0.5 ? lForce = true : rForce = true;
+                return new BinaryOp(op, generateAST(depth - 1, lForce), generateAST(Math.max(0, depth - 2), rForce));
+            }
+        }
+
+        function validate(ast) {
+            const code = ast.toExec();
+            let func;
+            try { func = new Function("x", `return ${code};`); } catch(e) { return null; }
+
+            const pts = [-4, -2, -0.5, 0.5, 2, 4, 3.14];
+            const res = [];
+            for (let x of pts) {
+                const y = func(x);
+                if (isFinite(y) && !isNaN(y)) res.push({x, y});
+            }
+            if (res.length < 5) return null;
+            
+            const ys = res.map(p => p.y);
+            const range = Math.max(...ys) - Math.min(...ys);
+            
+            if (range < 0.001) return null; // 常数检测
+            
+            const isId = res.every(p => Math.abs(p.y - p.x) < 0.1);
+            const isNegId = res.every(p => Math.abs(p.y + p.x) < 0.1);
+            if (isId || isNegId) return null; // 恒等检测
+
+            const mid = (Math.max(...ys) + Math.min(...ys)) / 2;
+            const span = Math.max(range * 1.5, 10);
+
+            return {
+                yDomain: [mid - span/2, mid + span/2],
+                plotString: ast.toPlot(),
+                latexString: ast.toLatex()
+            };
+        }
+
+        // ================= 复制功能逻辑 =================
+        let currentLatex = ""; // 存储当前公式的 LaTeX
+
+        function copyToClipboard() {
+            if (!currentLatex) return;
+            
+            navigator.clipboard.writeText(currentLatex).then(() => {
+                // UI 反馈
+                const iconCopy = document.getElementById('icon-copy');
+                const iconCheck = document.getElementById('icon-check');
+                
+                iconCopy.style.display = 'none';
+                iconCheck.style.display = 'block';
+                
+                setTimeout(() => {
+                    iconCopy.style.display = 'block';
+                    iconCheck.style.display = 'none';
+                }, 1500);
+            });
+        }
+
+        // ================= 主运行逻辑 =================
+        function run() {
+            const btn = document.getElementById('btn');
+            const plotDiv = document.getElementById('plot-area');
+            const formulaDiv = document.getElementById('formula-container');
+            const latexDiv = document.getElementById('latex');
+            const body = document.body;
+
+            btn.disabled = true;
+            plotDiv.classList.remove('show');
+            formulaDiv.classList.remove('show');
+            body.classList.remove('meme-mode'); // 重置彩蛋样式
+
+            setTimeout(() => {
+                let data = null;
+
+                // --- 114514 彩蛋逻辑 ---
+                // 0.1% 概率 (Math.random() < 0.001)
+                if (Math.random() < 0.001) {
+                    console.log("Meme Triggered!");
+                    body.classList.add('meme-mode');
+                    data = {
+                        plotString: "sin(x) + 114514", // 数学上有效
+                        latexString: "\\sin(x) + 114514",
+                        yDomain: [114513, 114515] // 手动聚焦高空
+                    };
+                } else {
+                    // --- 常规生成逻辑 ---
+                    let ast = null, i = 0;
+                    while (!data && i < 200) {
+                        ast = generateAST(Math.floor(Math.random()*3)+2, true);
+                        data = validate(ast);
+                        i++;
+                    }
+                    if (!data) { // 保底
+                        data = { plotString: "sin(x)", latexString: "\\sin(x)", yDomain: [-2, 2] };
+                    }
+                }
+
+                // 更新全局变量供复制使用
+                currentLatex = data.latexString;
+
+                // 渲染 Latex
+                katex.render(`f(x) = ${data.latexString}`, latexDiv);
+                
+                // 渲染图像
+                plotDiv.innerHTML = "";
+                try {
+                    functionPlot({
+                        target: '#plot-area',
+                        width: 700, height: 450,
+                        yAxis: { domain: data.yDomain },
+                        xAxis: { domain: [-6, 6] },
+                        grid: true,
+                        data: [{
+                            fn: data.plotString,
+                            nSamples: 2000,
+                            graphType: 'polyline'
+                        }],
+                        disableZoom: true
+                    });
+                    plotDiv.classList.add('show');
+                    formulaDiv.classList.add('show');
+                } catch(e) {
+                    console.error(e);
+                }
+
+                btn.disabled = false;
+            }, 300);
+        }
+
+        window.onload = run;
+    </script>
+</body>
+</html>
