@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Math Enigma Pro</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script>
+        window.MathJax = {
+            tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']] },
+            svg: { fontCache: 'global' },
+            startup: { typeset: false }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    
+    <style>
+        /* === 1. 变量系统 === */
+        :root {
+            /* 默认: Dark */
+            --bg-color: #131314;
+            --sidebar-bg: #1e1f20;
+            --surface-hover: #2c2c2c;
+            --active-bg: #004a77; 
+            --active-text: #c2e7ff;
+            --text-primary: #e3e3e3;
+            --text-secondary: #c4c7c5;
+            --menu-bg: #2c2c2c;
+            --input-bg: #1e1f20;
+            
+            /* 气泡 */
+            --bubble-them-bg: #2c2c2c;
+            --bubble-them-text: #ffffff;
+            /* 渐变端点 (底部蓝 -> 顶部紫) */
+            --gradient-start: #0b57d0; 
+            --gradient-end: #651fff; 
+            --bubble-text: #ffffff;
+
+            --pill-radius: 50px;
+            --font-family: 'Google Sans', 'Segoe UI', Roboto, sans-serif;
+            --bezier-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+            --bezier-smooth: cubic-bezier(0.2, 0, 0, 1);
+        }
+
+        /* Theme: Light */
+        body.theme-light {
+            --bg-color: #ffffff;
+            --sidebar-bg: #f0f2f5;
+            --surface-hover: #e1e3e6;
+            --active-bg: #d3e3fd;
+            --active-text: #041e49;
+            --text-primary: #1f1f1f;
+            --text-secondary: #444746;
+            --menu-bg: #ffffff;
+            --input-bg: #f0f2f5;
+            --bubble-them-bg: #f2f2f2;
+            --bubble-them-text: #000000;
+            --gradient-start: #0b57d0;
+            --gradient-end: #7c4dff;
+            --bubble-text: #ffffff;
+        }
+
+        /* Theme: Midnight */
+        body.theme-midnight {
+            --bg-color: #000000;
+            --sidebar-bg: #000000;
+            --surface-hover: #1a1a1a;
+            --active-bg: #1a1a1a;
+            --active-text: #ffffff;
+            --text-primary: #ffffff;
+            --text-secondary: #888888;
+            --menu-bg: #111111;
+            --input-bg: #111111;
+            --bubble-them-bg: #111111;
+            --bubble-them-text: #cccccc;
+            --gradient-start: #00e5ff;
+            --gradient-end: #d500f9;
+            --bubble-text: #000000;
+        }
+
+        /* Theme: Forest */
+        body.theme-forest {
+            --bg-color: #0f1812;
+            --sidebar-bg: #15221a;
+            --surface-hover: #213327;
+            --active-bg: #c4eed0;
+            --active-text: #072711;
+            --text-primary: #e3e3e3;
+            --text-secondary: #8ea896;
+            --menu-bg: #1b2b21;
+            --input-bg: #1b2b21;
+            --bubble-them-bg: #1b2b21;
+            --bubble-them-text: #e3e3e3;
+            --gradient-start: #2e7d32;
+            --gradient-end: #00695c;
+            --bubble-text: #ffffff;
+        }
+
+        body, html { margin: 0; padding: 0; height: 100%; font-family: var(--font-family); background-color: var(--bg-color); color: var(--text-primary); overflow: hidden; transition: background 0.3s, color 0.3s; }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; }
+
+        .app-container { display: flex; height: 100vh; width: 100vw; }
+
+        /* === 2. 侧边栏 (Rail Mode) === */
+        .sidebar {
+            width: 280px;
+            background: var(--sidebar-bg);
+            display: flex; flex-direction: column;
+            padding: 12px;
+            /* 宽度平滑过渡 */
+            transition: width 0.4s var(--bezier-smooth), background 0.3s;
+            z-index: 100;
+            flex-shrink: 0;
+            border-right: 1px solid rgba(255,255,255,0.03);
+            position: relative;
+            overflow: hidden; 
+        }
+        
+        /* 收缩状态 */
+        .sidebar.collapsed { width: 72px; padding: 12px 8px; }
+
+        .sidebar-header {
+            display: flex; align-items: center; 
+            height: 48px; margin-bottom: 20px; padding-left: 4px;
+            flex-shrink: 0;
+        }
+        
+        /* 汉堡按钮：位置固定 */
+        .menu-btn {
+            width: 40px; height: 40px; min-width: 40px;
+            background: transparent; border: none; color: var(--text-secondary);
+            border-radius: 50%; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            position: relative; overflow: hidden; /* Ripple */
+            transition: color 0.2s;
+        }
+        .menu-btn:hover { background: var(--surface-hover); color: var(--text-primary); }
+
+        /* 侧边栏内容容器 (收缩时隐藏) */
+        .sidebar-content {
+            flex: 1; display: flex; flex-direction: column;
+            transition: opacity 0.2s, transform 0.2s;
+            opacity: 1; transform: translateX(0);
+            width: 256px; /* 锁定宽防止挤压 */
+        }
+        .sidebar.collapsed .sidebar-content {
+            opacity: 0; pointer-events: none; transform: translateX(-10px);
+            transition: opacity 0.1s;
+        }
+
+        .new-chat-btn {
+            background: var(--surface-hover); color: var(--text-primary); border: none;
+            padding: 12px 16px; border-radius: 16px; font-size: 14px; font-weight: 500;
+            display: flex; align-items: center; gap: 12px; cursor: pointer;
+            transition: background 0.2s; margin-bottom: 20px;
+            position: relative; overflow: hidden; /* Ripple */
+        }
+        .new-chat-btn:hover { filter: brightness(0.95); }
+        .plus-icon { font-size: 20px; color: var(--gradient-start); }
+
+        .history-section-title { font-size: 12px; font-weight: 500; color: var(--text-secondary); margin: 10px 10px 5px; }
+        .history-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
+
+        .history-item {
+            padding: 10px 16px; border-radius: var(--pill-radius);
+            font-size: 14px; color: var(--text-primary);
+            cursor: pointer; position: relative;
+            display: flex; align-items: center; justify-content: space-between;
+            transition: background 0.1s;
+            overflow: hidden; /* Ripple */
+            height: 44px;
+        }
+        .history-item.entering { animation: slideInLeft 0.3s var(--bezier-bounce) forwards; }
+        @keyframes slideInLeft { from { opacity: 0; transform: translateX(-20px); } to { opacity: 1; transform: translateX(0); } }
+
+        .history-item:hover { background-color: var(--surface-hover); }
+        .history-item.active { background-color: var(--active-bg); color: var(--active-text); font-weight: 600; }
+        .history-item.active .item-text { color: var(--active-text); }
+        
+        .item-text { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-right: 8px; }
+        .pinned-icon { font-size: 12px; margin-right: 5px; color: var(--text-secondary); }
+        
+        .kebab-menu-btn {
+            background: transparent; border: none; color: var(--text-secondary);
+            border-radius: 50%; width: 28px; height: 28px;
+            display: flex; align-items: center; justify-content: center;
+            opacity: 0; transition: opacity 0.2s; cursor: pointer; z-index: 2;
+        }
+        .history-item:hover .kebab-menu-btn { opacity: 1; }
+        .kebab-menu-btn:hover { background: rgba(255,255,255,0.2); color: var(--text-primary); }
+
+        .settings-area { margin-top: auto; padding-top: 10px; position: relative; }
+        .settings-btn {
+            width: 100%; padding: 12px 16px; border-radius: var(--pill-radius);
+            background: transparent; color: var(--text-primary); border: none;
+            text-align: left; cursor: pointer; display: flex; align-items: center; gap: 12px;
+            font-size: 14px; position: relative; overflow: hidden; /* Ripple */
+            transition: background-color 0.2s;
+        }
+        .settings-btn:hover { background-color: var(--surface-hover); }
+        .settings-btn.active { background-color: var(--active-bg); color: var(--active-text); }
+
+        /* === 3. 主界面 (Gemini Header + Chat) === */
+        .main-area { flex: 1; display: flex; flex-direction: column; background-color: var(--bg-color); position: relative; }
+        
+        /* 顶部 Gemini 风格标题栏 */
+        .main-header {
+            position: absolute; top: 0; left: 0; right: 0; height: 60px;
+            display: flex; align-items: center; padding: 0 20px;
+            z-index: 10; 
+        }
+        .project-title {
+            font-size: 18px; color: var(--text-secondary); cursor: default;
+            display: flex; align-items: center; gap: 8px;
+            transition: color 0.2s;
+        }
+        .project-title:hover { color: var(--text-primary); }
+
+        .chat-scroll { flex: 1; overflow-y: auto; padding: 70px 12% 20px; display: flex; flex-direction: column; gap: 6px; }
+
+        .message-row { display: flex; width: 100%; margin-bottom: 2px; }
+        .message-row.me { justify-content: flex-end; }
+        
+        /* 气泡优化：高度紧凑 */
+        .bubble {
+            max-width: 80%; 
+            padding: 6px 14px; /* 紧凑 padding */
+            font-size: 15px; 
+            line-height: 1.4; /* 紧凑行高 */
+            position: relative; word-wrap: break-word;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            opacity: 0; transform: scale(0.9) translateY(10px);
+            animation: popIn 0.35s var(--bezier-bounce) forwards;
+            transition: background-color 0.5s ease;
+        }
+        .bubble p { margin: 0; } /* 移除 Markdown P 标签的默认边距 */
+        @keyframes popIn { to { opacity: 1; transform: scale(1) translateY(0); } }
+
+        .bubble.them {
+            background: var(--bubble-them-bg); color: var(--bubble-them-text);
+            border-radius: 18px 18px 18px 4px; transform-origin: bottom left;
+        }
+        
+        /* 动态上色 (颜色由JS计算) */
+        .bubble.me {
+            color: var(--bubble-text);
+            border-radius: 18px 18px 4px 18px; transform-origin: bottom right;
+            background-color: var(--gradient-start);
+        }
+
+        .spinner {
+            width: 20px; height: 20px; border: 2px solid transparent;
+            border-top-color: var(--gradient-start); border-right-color: var(--gradient-start);
+            border-radius: 50%; animation: spin 0.8s linear infinite; margin-left: 5px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .input-area { background: var(--bg-color); padding: 0 12% 24px; display: flex; align-items: flex-end; gap: 12px; transition: background 0.3s; }
+        .input-wrapper {
+            flex: 1; background: var(--input-bg); border-radius: 28px; display: flex; align-items: center;
+            padding: 10px 20px; border: 1px solid transparent; transition: 0.2s;
+        }
+        .input-wrapper:focus-within { background: var(--input-bg); border-color: var(--text-secondary); }
+        .chat-input { flex: 1; border: none; background: transparent; color: var(--text-primary); font-size: 16px; resize: none; max-height: 150px; outline: none; font-family: inherit; }
+        
+        .send-btn {
+            width: 44px; height: 44px; border-radius: 50%; background: transparent;
+            color: var(--text-secondary); border: none; display: flex; align-items: center; justify-content: center;
+            cursor: pointer; transition: 0.2s; position: relative; overflow: hidden; /* Ripple */
+        }
+        .send-btn:hover { background: var(--surface-hover); }
+        .send-btn.active { background: var(--active-bg); color: var(--active-text); }
+
+        /* === 4. Popovers & Modals === */
+        .popover-menu {
+            position: fixed; background: var(--menu-bg); padding: 8px 0;
+            border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+            display: none; flex-direction: column; min-width: 200px; z-index: 1000;
+            border: 1px solid rgba(255,255,255,0.05);
+            animation: menuFade 0.1s ease;
+        }
+        body.light-theme .popover-menu { border: 1px solid rgba(0,0,0,0.1); box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
+        @keyframes menuFade { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        .popover-menu.show { display: flex; }
+        
+        .menu-option {
+            padding: 12px 20px; cursor: pointer; font-size: 14px; color: var(--text-primary);
+            display: flex; align-items: center; gap: 12px; position: relative; overflow: hidden; /* Ripple */
+        }
+        .menu-option:hover { background: var(--surface-hover); }
+        .menu-option.danger { color: #ff8b8b; }
+        .menu-separator { height: 1px; background: rgba(255,255,255,0.1); margin: 4px 0; }
+
+        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 2000; align-items: center; justify-content: center; backdrop-filter: blur(4px); }
+        .modal.active { display: flex; }
+        .modal-box { background: var(--menu-bg); padding: 24px; border-radius: 24px; width: 400px; color: var(--text-primary); box-shadow: 0 10px 40px rgba(0,0,0,0.5); }
+        .modal input { width: 100%; padding: 12px; margin: 8px 0 20px; background: rgba(0,0,0,0.1); border: 1px solid transparent; color: var(--text-primary); border-radius: 8px; }
+        .modal input:focus { border-color: var(--active-bg); }
+        .modal-btns { text-align: right; }
+        .btn { padding: 8px 24px; border-radius: 20px; border: none; cursor: pointer; font-weight: 500; margin-left: 10px; position: relative; overflow: hidden; /* Ripple */ }
+        .btn-primary { background: var(--active-bg); color: var(--active-text); }
+        .btn-text { background: transparent; color: var(--active-bg); }
+
+        /* Theme Grid */
+        .theme-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+        .theme-btn { 
+            padding: 15px; border-radius: 12px; border: 2px solid transparent; cursor: pointer; 
+            text-align: center; background: rgba(0,0,0,0.1); color: var(--text-primary);
+            transition: 0.2s;
+        }
+        .theme-btn:hover { background: rgba(0,0,0,0.2); }
+        .theme-btn.selected { border-color: var(--active-bg); background: rgba(0,0,0,0.05); color: var(--active-bg); font-weight: bold; }
+
+        /* Ripple (Slow & Smooth) */
+        .ripple {
+            position: absolute; border-radius: 50%; background: rgba(255, 255, 255, 0.1);
+            transform: scale(0); animation: ripple-anim 0.6s ease-out; pointer-events: none;
+        }
+        @keyframes ripple-anim { to { transform: scale(3); opacity: 0; } }
+
+        @media (max-width: 768px) {
+            .sidebar { position: fixed; height: 100%; left: 0; transform: translateX(-100%); width: 280px; }
+            .sidebar.show { transform: translateX(0); }
+            .sidebar.collapsed { width: 280px; } /* Mobile overrides rail */
+            .main-header { padding-left: 50px; } /* Space for mobile toggle */
+            .mobile-toggle { display: block !important; position: absolute; left: 10px; top: 15px; z-index: 20; background: transparent; border:none; color: var(--text-secondary); }
+            .chat-scroll, .input-area { padding-left: 16px; padding-right: 16px; }
+            .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 90; }
+            .sidebar.show + .sidebar-overlay { display: block; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <button class="menu-btn ripple-target" onclick="toggleSidebar()">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
+            </button>
+        </div>
+
+        <div class="sidebar-content">
+            <button class="new-chat-btn ripple-target" onclick="createNewGame()">
+                <span class="plus-icon">+</span>
+                <span data-i18n="newChat">New chat</span>
+            </button>
+
+            <div class="history-section-title" data-i18n="recent">Recent</div>
+            <div class="history-list" id="history-list"></div>
+
+            <div class="settings-area">
+                <button class="settings-btn ripple-target" id="settings-trigger" onclick="showSettingsMenu(event)">
+                    <span>⚙️</span>
+                    <span data-i18n="settings">Settings</span>
+                </button>
+            </div>
+        </div>
+    </aside>
+    
+    <div class="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+    <main class="main-area">
+        <div class="main-header">
+            <button class="mobile-toggle" style="display:none" onclick="toggleSidebar()">
+                 <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
+            </button>
+            <div class="project-title">
+                Math Enigma Pro <span style="font-size:12px; opacity:0.6; margin-left:5px">▼</span>
+            </div>
+        </div>
+
+        <div class="chat-scroll" id="chat-box"></div>
+
+        <div class="input-area">
+            <div class="input-wrapper">
+                <textarea class="chat-input" id="user-input" placeholder="Ask Math Enigma..." rows="1"></textarea>
+            </div>
+            <button class="send-btn ripple-target" id="send-btn" onclick="sendMessage()">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+            </button>
+        </div>
+    </main>
+</div>
+
+<div class="popover-menu" id="settings-menu">
+    <div class="menu-option ripple-target" onclick="openThemeModal()">
+        <span>🎨</span> <span data-i18n="theme">Theme</span>
+    </div>
+    <div class="menu-option ripple-target" onclick="toggleLanguage()">
+        <span>🌐</span> <span data-i18n="language">Language (En)</span>
+    </div>
+    <div class="menu-option ripple-target" onclick="openApiModal()">
+        <span>🔑</span> <span data-i18n="api">API Settings</span>
+    </div>
+    <div class="menu-separator"></div>
+    <div class="menu-option ripple-target" onclick="showRules()">
+        <span>📜</span> <span data-i18n="rules">Rules</span>
+    </div>
+    <a href="https://cichlider.github.io/Math-Enigma/" target="_blank" class="menu-option ripple-target">
+        <span>🔗</span> <span>Web</span>
+    </a>
+</div>
+
+<div class="modal" id="theme-modal">
+    <div class="modal-box">
+        <h3 data-i18n="themeTitle">Select Theme</h3>
+        <div class="theme-grid">
+            <div class="theme-btn selected" onclick="setTheme('dark', this)">Dark</div>
+            <div class="theme-btn" onclick="setTheme('light', this)">Light</div>
+            <div class="theme-btn" onclick="setTheme('midnight', this)">Midnight</div>
+            <div class="theme-btn" onclick="setTheme('forest', this)">Forest</div>
+        </div>
+        <div class="modal-btns">
+            <button class="btn btn-primary ripple-target" onclick="closeThemeModal()" data-i18n="close">Close</button>
+        </div>
+    </div>
+</div>
+
+<div class="popover-menu" id="context-menu">
+    <div class="menu-option ripple-target" onclick="handleMenuAction('rename')">✏️ Rename</div>
+    <div class="menu-option ripple-target" onclick="handleMenuAction('pin')">📌 Pin</div>
+    <div class="menu-option danger ripple-target" onclick="handleMenuAction('delete')">🗑️ Delete</div>
+</div>
+
+<div class="modal" id="api-modal">
+    <div class="modal-box">
+        <h3 data-i18n="apiTitle">API Settings</h3>
+        <label>API Key (Google AI Studio)</label>
+        <input type="password" id="api-key" placeholder="AIza...">
+        <label>Base URL</label>
+        <input type="text" id="api-url" value="https://generativelanguage.googleapis.com/v1beta/openai/">
+        <label>Model</label>
+        <input type="text" id="api-model" value="gemini-1.5-flash">
+        <div class="modal-btns">
+            <button class="btn btn-text ripple-target" onclick="closeApiModal()" data-i18n="cancel">Cancel</button>
+            <button class="btn btn-primary ripple-target" onclick="saveApiSettings()" data-i18n="save">Save</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // === Data & Config ===
+    const i18n = {
+        en: { newChat: "New Chat", recent: "Recent", settings: "Settings", language: "Language (Zh)", api: "API Settings", rules: "Rules", apiTitle: "API Settings", theme:"Theme", themeTitle:"Select Theme", cancel: "Cancel", save: "Save", close:"Close" },
+        zh: { newChat: "新对话", recent: "最近记录", settings: "设置", language: "语言 (En)", api: "API 设置", rules: "游戏规则", apiTitle: "API 配置", theme:"外观", themeTitle:"选择主题", cancel: "取消", save: "保存", close:"关闭" }
+    };
+    
+    let currentTheme = 'dark';
+    let currentLang = 'en';
+    let games = [];
+    let currentGameId = null;
+    let contextMenuTargetId = null;
+    let apiConfig = { key: '', url: 'https://generativelanguage.googleapis.com/v1beta/openai/', model: 'gemini-1.5-flash' };
+
+    // === Color Interpolation ===
+    function hexToRgb(hex) {
+        const bigint = parseInt(hex.replace('#', ''), 16);
+        return [(bigint >> 16) & 255, (bigint >> 8) & 255, bigint & 255];
+    }
+    function interpolateColor(color1, color2, factor) {
+        const result = color1.slice();
+        for (let i = 0; i < 3; i++) {
+            result[i] = Math.round(result[i] + factor * (color2[i] - color1[i]));
+        }
+        return `rgb(${result[0]}, ${result[1]}, ${result[2]})`;
+    }
+
+    // === Gradient Logic ===
+    function updateBubbleColors() {
+        const bubbles = document.querySelectorAll('.message-row.me .bubble');
+        const count = bubbles.length;
+        if (count === 0) return;
+
+        const style = getComputedStyle(document.body);
+        const startColor = hexToRgb(style.getPropertyValue('--gradient-start').trim());
+        const endColor = hexToRgb(style.getPropertyValue('--gradient-end').trim());
+
+        bubbles.forEach((bubble, index) => {
+            let factor = count > 1 ? (count - 1 - index) / (count - 1) : 0;
+            factor = Math.min(factor, 1);
+            bubble.style.backgroundColor = interpolateColor(startColor, endColor, factor);
+        });
+    }
+
+    // === Init ===
+    window.onload = () => {
+        initRipple();
+        loadSettings();
+        loadGames();
+        updateLanguageUI();
+        if (games.length === 0) createNewGame();
+        else switchGame(games[0].id);
+        
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('#settings-trigger') && !e.target.closest('#settings-menu')) closeSettingsMenu();
+            if (!e.target.closest('.kebab-menu-btn') && !e.target.closest('#context-menu')) document.getElementById('context-menu').classList.remove('show');
+        });
+    };
+
+    // === Sidebar Rail ===
+    function toggleSidebar() {
+        const sb = document.getElementById('sidebar');
+        if (window.innerWidth <= 768) sb.classList.toggle('show');
+        else sb.classList.toggle('collapsed');
+    }
+
+    // === Theme Engine ===
+    function openThemeModal() {
+        closeSettingsMenu();
+        document.getElementById('theme-modal').classList.add('active');
+    }
+    function closeThemeModal() {
+        document.getElementById('theme-modal').classList.remove('active');
+    }
+    function setTheme(themeName, btn) {
+        // Clear previous
+        document.body.classList.remove('theme-light', 'theme-midnight', 'theme-forest');
+        document.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('selected'));
+        
+        // Set new
+        if(themeName !== 'dark') document.body.classList.add(`theme-${themeName}`);
+        btn.classList.add('selected');
+        
+        currentTheme = themeName;
+        // Trigger gradient update slightly later to allow CSS var update
+        setTimeout(updateBubbleColors, 100);
+    }
+
+    // === Ripple ===
+    function initRipple() {
+        document.addEventListener('mousedown', function(e) {
+            if (e.target.closest('.kebab-menu-btn')) return;
+            const target = e.target.closest('.ripple-target');
+            if (!target) return;
+            
+            const rect = target.getBoundingClientRect();
+            const size = Math.max(rect.width, rect.height);
+            const x = e.clientX - rect.left - size / 2;
+            const y = e.clientY - rect.top - size / 2;
+            
+            const ripple = document.createElement('span');
+            ripple.className = 'ripple';
+            ripple.style.width = ripple.style.height = `${size}px`;
+            ripple.style.left = `${x}px`;
+            ripple.style.top = `${y}px`;
+            target.appendChild(ripple);
+            setTimeout(() => ripple.remove(), 600);
+        });
+    }
+
+    // === Chat Logic ===
+    function renderChat() {
+        const box = document.getElementById('chat-box');
+        box.innerHTML = '';
+        const game = games.find(g => g.id === currentGameId);
+        if (!game) return;
+        game.messages.forEach(msg => appendMessage(msg.sender, msg.text, false));
+        scrollToBottom();
+    }
+
+    function appendMessage(sender, text, animate = true) {
+        const box = document.getElementById('chat-box');
+        const row = document.createElement('div');
+        row.className = `message-row ${sender}`;
+        const bubble = document.createElement('div');
+        bubble.className = `bubble ${sender}`;
+        bubble.innerHTML = marked.parse(text);
+        row.appendChild(bubble);
+        box.appendChild(row);
+        
+        if (window.MathJax) MathJax.typesetPromise([bubble]);
+        if (animate) scrollToBottom();
+        
+        if (sender === 'me') requestAnimationFrame(updateBubbleColors);
+    }
+    
+    const originalRenderChat = renderChat;
+    renderChat = function() { originalRenderChat(); requestAnimationFrame(updateBubbleColors); }
+
+    function createNewGame() {
+        const newId = Date.now();
+        const soup = "Function: f(x) = (cos(sin(cos(x))) + sin(x))/2.";
+        const name = currentLang === 'en' ? "New Chat" : "新对话";
+        games.unshift({ id: newId, time: new Date().toLocaleTimeString(), name, pinned: false, messages: [], soup });
+        saveGames();
+        renderHistory();
+        const first = document.querySelector('.history-item');
+        if(first) first.classList.add('entering');
+        switchGame(newId);
+        setTimeout(() => appendMessage('them', currentLang==='en'?"**Soup Ready**\nAsk me!":"**汤底已就绪**\n请提问！", true), 500);
+    }
+
+    function switchGame(id) {
+        currentGameId = id;
+        renderHistory();
+        renderChat();
+        if (window.innerWidth <= 768) document.getElementById('sidebar').classList.remove('show');
+    }
+
+    async function sendMessage() {
+        const input = document.getElementById('user-input');
+        const text = input.value.trim();
+        if (!text) return;
+        if (!apiConfig.key) { openApiModal(); return; }
+
+        input.value = '';
+        input.style.height = 'auto';
+        document.getElementById('send-btn').classList.remove('active');
+        
+        const game = games.find(g => g.id === currentGameId);
+        game.messages.push({ sender: 'me', text });
+        if (game.messages.length === 1) { game.name = text.slice(0, 15); }
+        saveGames();
+        renderHistory();
+        appendMessage('me', text);
+
+        const loadingId = 'loading-' + Date.now();
+        const row = document.createElement('div');
+        row.className = 'message-row them';
+        row.id = loadingId;
+        row.innerHTML = `<div class="bubble them"><div class="spinner"></div></div>`;
+        document.getElementById('chat-box').appendChild(row);
+        scrollToBottom();
+
+        try {
+            const reply = await fetchAI(text, game);
+            document.getElementById(loadingId).remove();
+            game.messages.push({ sender: 'them', text: reply });
+            saveGames();
+            appendMessage('them', reply);
+        } catch (e) {
+            document.getElementById(loadingId).remove();
+            appendMessage('them', `Error: ${e.message}`);
+        }
+    }
+
+    // === API FIX (Robust URL) ===
+    async function fetchAI(text, game) {
+        let msgs = [{role:'system', content:game.soup}];
+        game.messages.forEach(m => {
+            if(m.text !== text) msgs.push({role: m.sender==='me'?'user':'assistant', content: m.text});
+        });
+        msgs.push({role:'user', content:text});
+
+        // 智能修正 URL Logic
+        let url = apiConfig.url.trim().replace(/\/$/, ""); // 去掉末尾斜杠
+        // 如果包含 /openai，则按标准 path 补全
+        if (!url.endsWith("/chat/completions")) {
+             url += "/chat/completions";
+        }
+
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: {'Content-Type':'application/json', 'Authorization': `Bearer ${apiConfig.key}`},
+            body: JSON.stringify({model: apiConfig.model, messages: msgs})
+        });
+        if(!res.ok) throw new Error("API Error: " + res.status);
+        const data = await res.json();
+        return data.choices?.[0]?.message?.content || "Error";
+    }
+
+    // === Helpers ===
+    function renderHistory() {
+        const list = document.getElementById('history-list');
+        list.innerHTML = '';
+        const sorted = [...games].sort((a,b) => (a.pinned===b.pinned) ? b.id-a.id : (a.pinned?-1:1));
+        sorted.forEach(g => {
+            const div = document.createElement('div');
+            div.className = `history-item ripple-target ${g.id === currentGameId ? 'active' : ''}`;
+            div.onclick = (e) => { if(!e.target.closest('.kebab-menu-btn')) switchGame(g.id); };
+            const pin = g.pinned ? '<span class="pinned-icon">📌</span>' : '';
+            div.innerHTML = `<span class="item-text">${pin}${g.name||g.time}</span><button class="kebab-menu-btn" onmousedown="event.stopPropagation()" onclick="showContextMenu(event, ${g.id})">⋮</button>`;
+            list.appendChild(div);
+        });
+    }
+
+    function showSettingsMenu(e) {
+        e.stopPropagation();
+        const menu = document.getElementById('settings-menu');
+        const btn = document.getElementById('settings-trigger');
+        const rect = btn.getBoundingClientRect();
+        menu.style.bottom = `${window.innerHeight - rect.top}px`;
+        menu.style.left = `${rect.left}px`;
+        
+        if (menu.classList.contains('show')) closeSettingsMenu();
+        else { menu.classList.add('show'); btn.classList.add('active'); }
+    }
+    function closeSettingsMenu() {
+        document.getElementById('settings-menu').classList.remove('show');
+        document.getElementById('settings-trigger').classList.remove('active');
+    }
+
+    function showContextMenu(e, id) {
+        e.stopPropagation();
+        contextMenuTargetId = id;
+        const menu = document.getElementById('context-menu');
+        const rect = e.target.getBoundingClientRect();
+        menu.style.top = `${rect.bottom}px`;
+        menu.style.left = `${rect.left}px`;
+        menu.classList.add('show');
+    }
+    function handleMenuAction(action) {
+        const idx = games.findIndex(g => g.id === contextMenuTargetId);
+        if (idx === -1) return;
+        const g = games[idx];
+        if (action === 'delete' && confirm(`Delete "${g.name}"?`)) {
+            games.splice(idx, 1);
+            if (currentGameId === contextMenuTargetId) { currentGameId = games.length?games[0].id:null; renderChat(); }
+            saveGames(); renderHistory();
+        } else if (action === 'rename') {
+            const n = prompt("Name:", g.name);
+            if (n) { g.name = n; saveGames(); renderHistory(); }
+        } else if (action === 'pin') {
+            g.pinned = !g.pinned; saveGames(); renderHistory();
+        }
+        document.getElementById('context-menu').classList.remove('show');
+    }
+
+    function toggleLanguage() { currentLang = currentLang==='en'?'zh':'en'; updateLanguageUI(); }
+    function updateLanguageUI() { document.querySelectorAll('[data-i18n]').forEach(el => { const k=el.getAttribute('data-i18n'); if(i18n[currentLang][k]) el.innerText=i18n[currentLang][k]; }); }
+    function showRules() { alert("Rules: Guess the function f(x) with Yes/No questions."); }
+    function openApiModal() { closeSettingsMenu(); document.getElementById('api-modal').classList.add('active'); }
+    function closeApiModal() { document.getElementById('api-modal').classList.remove('active'); }
+    function saveApiSettings() {
+        apiConfig.key = document.getElementById('api-key').value;
+        apiConfig.url = document.getElementById('api-url').value;
+        apiConfig.model = document.getElementById('api-model').value;
+        localStorage.setItem('math_api_config', JSON.stringify(apiConfig));
+        closeApiModal();
+        alert("API Settings Saved!");
+    }
+    function saveGames() { localStorage.setItem('math_games_v3', JSON.stringify(games)); }
+    function loadGames() { const s = localStorage.getItem('math_games_v3'); if(s) games = JSON.parse(s); }
+    function loadSettings() { const s = localStorage.getItem('math_api_config'); if(s) { apiConfig=JSON.parse(s); document.getElementById('api-key').value=apiConfig.key; document.getElementById('api-url').value=apiConfig.url; document.getElementById('api-model').value=apiConfig.model; } }
+    function scrollToBottom() { const b = document.getElementById('chat-box'); b.scrollTop = b.scrollHeight; }
+
+    const inp = document.getElementById('user-input');
+    inp.addEventListener('input', function() {
+        this.style.height = 'auto'; this.style.height = this.scrollHeight + 'px';
+        const btn = document.getElementById('send-btn');
+        if(this.value.trim()) btn.classList.add('active'); else btn.classList.remove('active');
+    });
+    inp.addEventListener('keydown', e => { if(e.key==='Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } });
+</script>
+</body>
+</html>

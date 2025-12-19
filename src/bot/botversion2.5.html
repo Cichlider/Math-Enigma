@@ -1,0 +1,863 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Math Enigma Pro</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script>
+        window.MathJax = {
+            tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']] },
+            svg: { fontCache: 'global' },
+            startup: { typeset: false }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    
+    <style>
+        /* === 1. 变量系统 === */
+        :root {
+            /* 默认: Dark */
+            --bg-color: #131314;
+            --sidebar-bg: #1e1f20;
+            --surface-hover: #2c2c2c;
+            --active-bg: #004a77; 
+            --active-text: #c2e7ff;
+            --text-primary: #e3e3e3;
+            --text-secondary: #c4c7c5;
+            --menu-bg: #2b2d31;
+            --input-bg: #1e1f20;
+            
+            /* 气泡 */
+            --bubble-them-bg: #2c2c2c;
+            --bubble-them-text: #ffffff;
+            --gradient-start: #0b57d0; 
+            --gradient-end: #651fff; 
+            --bubble-text: #ffffff;
+
+            --pill-radius: 50px;
+            --menu-radius: 16px;
+            --font-family: 'Google Sans', 'Segoe UI', Roboto, sans-serif;
+            --bezier-bounce: cubic-bezier(0.2, 0.0, 0, 1.0);
+            --bezier-pop: cubic-bezier(0.3, 1.3, 0.3, 1);
+            
+            --header-height: 60px;
+            --shadow-elevation: 0 4px 12px rgba(0,0,0,0.3), 0 0 2px rgba(0,0,0,0.2);
+        }
+
+        /* Theme: Light */
+        body.theme-light {
+            --bg-color: #ffffff;
+            --sidebar-bg: #f0f2f5;
+            --surface-hover: #e1e3e6;
+            --active-bg: #d3e3fd;
+            --active-text: #041e49;
+            --text-primary: #1f1f1f;
+            --text-secondary: #444746;
+            --menu-bg: #ffffff;
+            --input-bg: #f0f2f5;
+            --bubble-them-bg: #f2f2f2;
+            --bubble-them-text: #000000;
+            --gradient-start: #0b57d0;
+            --gradient-end: #7c4dff;
+            --bubble-text: #ffffff;
+            --shadow-elevation: 0 4px 12px rgba(0,0,0,0.15), 0 0 2px rgba(0,0,0,0.1);
+        }
+
+        /* Theme: Midnight */
+        body.theme-midnight {
+            --bg-color: #000000;
+            --sidebar-bg: #000000;
+            --surface-hover: #1a1a1a;
+            --active-bg: #1a1a1a;
+            --active-text: #ffffff;
+            --text-primary: #ffffff;
+            --text-secondary: #888888;
+            --menu-bg: #111111;
+            --input-bg: #111111;
+            --bubble-them-bg: #111111;
+            --bubble-them-text: #cccccc;
+            --gradient-start: #00e5ff;
+            --gradient-end: #d500f9;
+            --bubble-text: #000000;
+        }
+
+        /* Theme: Forest */
+        body.theme-forest {
+            --bg-color: #0f1812;
+            --sidebar-bg: #15221a;
+            --surface-hover: #213327;
+            --active-bg: #c4eed0;
+            --active-text: #072711;
+            --text-primary: #e3e3e3;
+            --text-secondary: #888888;
+            --menu-bg: #1b2b21;
+            --input-bg: #1b2b21;
+            --bubble-them-bg: #1b2b21;
+            --bubble-them-text: #e3e3e3;
+            --gradient-start: #2e7d32;
+            --gradient-end: #00695c;
+            --bubble-text: #ffffff;
+        }
+
+        body, html { margin: 0; padding: 0; height: 100%; font-family: var(--font-family); background-color: var(--bg-color); color: var(--text-primary); overflow: hidden; transition: background 0.3s, color 0.3s; }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; }
+
+        .app-container { display: flex; height: 100vh; width: 100vw; }
+
+        /* === 2. 侧边栏 (Rail Mode) === */
+        .sidebar {
+            width: 280px;
+            background: var(--sidebar-bg);
+            display: flex; flex-direction: column;
+            padding: 0 12px 12px 12px;
+            transition: width 0.4s var(--bezier-bounce), background 0.3s;
+            z-index: 100;
+            flex-shrink: 0;
+            border-right: 1px solid rgba(255,255,255,0.03);
+            position: relative;
+            overflow: hidden; 
+        }
+        
+        .sidebar.collapsed { width: 72px; padding: 0 8px 12px 8px; }
+
+        .sidebar-header {
+            display: flex; align-items: center; 
+            height: var(--header-height);
+            margin-bottom: 0; padding-left: 4px;
+            flex-shrink: 0;
+        }
+        
+        .menu-btn {
+            width: 40px; height: 40px; min-width: 40px;
+            background: transparent; border: none; color: var(--text-secondary);
+            border-radius: 50%; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            position: relative; overflow: hidden;
+            transition: color 0.2s;
+        }
+        .menu-btn:hover { background: var(--surface-hover); color: var(--text-primary); }
+
+        .sidebar-content {
+            flex: 1; display: flex; flex-direction: column;
+            transition: opacity 0.2s, transform 0.2s;
+            opacity: 1; transform: translateX(0);
+            width: 256px; margin-top: 10px;
+        }
+        .sidebar.collapsed .sidebar-content {
+            opacity: 0; pointer-events: none; transform: translateX(-10px);
+            transition: opacity 0.1s;
+        }
+
+        .new-chat-btn {
+            background: var(--surface-hover); color: var(--text-primary); border: none;
+            padding: 12px 16px; border-radius: 16px; font-size: 14px; font-weight: 500;
+            display: flex; align-items: center; gap: 12px; cursor: pointer;
+            transition: background 0.2s; margin-bottom: 20px;
+            position: relative; overflow: hidden;
+        }
+        .new-chat-btn:hover { filter: brightness(0.95); }
+        .plus-icon { font-size: 20px; color: var(--gradient-start); }
+
+        .history-section-title { font-size: 12px; font-weight: 500; color: var(--text-secondary); margin: 10px 10px 5px; }
+        .history-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
+
+        .history-item {
+            padding: 10px 16px; border-radius: var(--pill-radius);
+            font-size: 14px; color: var(--text-primary);
+            cursor: pointer; position: relative;
+            display: flex; align-items: center; justify-content: space-between;
+            transition: background 0.1s; overflow: hidden; height: 44px;
+        }
+        .history-item.entering { animation: slideInLeft 0.3s var(--bezier-bounce) forwards; }
+        @keyframes slideInLeft { from { opacity: 0; transform: translateX(-20px); } to { opacity: 1; transform: translateX(0); } }
+        .history-item:hover { background-color: var(--surface-hover); }
+        .history-item.active { background-color: var(--active-bg); color: var(--active-text); font-weight: 600; }
+        .history-item.active .item-text { color: var(--active-text); }
+        .item-text { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-right: 8px; }
+        .pinned-icon { font-size: 12px; margin-right: 5px; color: var(--text-secondary); }
+        
+        .kebab-menu-btn {
+            background: transparent; border: none; color: var(--text-secondary);
+            border-radius: 50%; width: 28px; height: 28px;
+            display: flex; align-items: center; justify-content: center;
+            opacity: 0; transition: opacity 0.2s; cursor: pointer; z-index: 2;
+        }
+        .history-item:hover .kebab-menu-btn { opacity: 1; }
+        .kebab-menu-btn:hover { background: rgba(255,255,255,0.2); color: var(--text-primary); }
+
+        .settings-area { margin-top: auto; padding-top: 10px; position: relative; }
+        .settings-btn {
+            width: 100%; padding: 12px 16px; border-radius: var(--pill-radius);
+            background: transparent; color: var(--text-primary); border: none;
+            text-align: left; cursor: pointer; display: flex; align-items: center; gap: 12px;
+            font-size: 14px; position: relative; overflow: hidden; transition: background-color 0.2s;
+        }
+        .settings-btn:hover { background-color: var(--surface-hover); }
+        .settings-btn.active { background-color: var(--active-bg); color: var(--active-text); }
+
+        /* === 3. 主界面 === */
+        .main-area { flex: 1; display: flex; flex-direction: column; background-color: var(--bg-color); position: relative; }
+        
+        .main-header {
+            position: absolute; top: 0; left: 0; right: 0; 
+            height: var(--header-height);
+            display: flex; align-items: center; padding: 0 20px;
+            z-index: 10; 
+        }
+        .project-title {
+            font-size: 18px; color: var(--text-secondary); cursor: default;
+            display: flex; align-items: center; gap: 8px; font-weight: 500;
+        }
+        .project-title:hover { color: var(--text-primary); }
+
+        .mobile-toggle {
+            position: absolute; left: 10px; top: 10px; z-index: 20;
+            background: transparent; border: none; color: var(--text-secondary);
+            width: 40px; height: 40px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            opacity: 0; pointer-events: none;
+            transition: opacity 0.3s ease, transform 0.3s var(--bezier-bounce);
+            transform: translateX(-20px); 
+            cursor: pointer;
+        }
+        .mobile-toggle:hover { background: var(--surface-hover); color: var(--text-primary); }
+
+        .chat-scroll { flex: 1; overflow-y: auto; padding: 74px 12% 20px; display: flex; flex-direction: column; }
+
+        .message-row { display: flex; width: 100%; margin-bottom: 20px; }
+        .message-row.me { justify-content: flex-end; }
+        
+        /* 智能分组 */
+        .message-row.me + .message-row.me { margin-top: -16px; } 
+        .message-row.them + .message-row.them { margin-top: -16px; }
+
+        .bubble {
+            max-width: 80%; 
+            padding: 6px 14px; 
+            font-size: 15px; line-height: 1.4; 
+            position: relative; word-wrap: break-word;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            opacity: 0; transform: scale(0.9) translateY(10px);
+            animation: popIn 0.35s var(--bezier-bounce) forwards;
+            transition: background-color 0.5s ease;
+        }
+        .bubble p { margin: 0; }
+        @keyframes popIn { to { opacity: 1; transform: scale(1) translateY(0); } }
+
+        .bubble.them {
+            background: var(--bubble-them-bg); color: var(--bubble-them-text);
+            border-radius: 18px 18px 18px 4px; transform-origin: bottom left;
+        }
+        .bubble.me {
+            color: var(--bubble-text);
+            border-radius: 18px 18px 4px 18px; transform-origin: bottom right;
+            background-color: var(--gradient-start);
+        }
+        .bubble.error {
+            background: #ffcdd2 !important; color: #b71c1c !important; border: 1px solid #e57373;
+        }
+
+        .spinner {
+            width: 20px; height: 20px; border: 2px solid transparent;
+            border-top-color: var(--gradient-start); border-right-color: var(--gradient-start);
+            border-radius: 50%; animation: spin 0.8s linear infinite; margin-left: 5px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .input-area { background: var(--bg-color); padding: 0 12% 24px; display: flex; align-items: flex-end; gap: 12px; transition: background 0.3s; }
+        .input-wrapper {
+            flex: 1; background: var(--input-bg); border-radius: 28px; display: flex; align-items: center;
+            padding: 10px 20px; border: 1px solid transparent; transition: 0.2s;
+        }
+        .input-wrapper:focus-within { background: var(--input-bg); border-color: var(--text-secondary); }
+        .chat-input { flex: 1; border: none; background: transparent; color: var(--text-primary); font-size: 16px; resize: none; max-height: 150px; outline: none; font-family: inherit; }
+        
+        .send-btn {
+            width: 44px; height: 44px; border-radius: 50%; background: transparent;
+            color: var(--text-secondary); border: none; display: flex; align-items: center; justify-content: center;
+            cursor: pointer; transition: 0.2s; position: relative; overflow: hidden;
+        }
+        .send-btn:hover { background: var(--surface-hover); }
+        .send-btn.active { background: var(--active-bg); color: var(--active-text); }
+
+        /* === 4. Gemini Style Popovers === */
+        .popover-menu {
+            position: fixed; background: var(--menu-bg); padding: 8px;
+            border-radius: var(--menu-radius);
+            box-shadow: var(--shadow-elevation);
+            display: none; flex-direction: column; min-width: 200px; z-index: 1000;
+            border: 1px solid rgba(255,255,255,0.05);
+            /* Scale & Fade Animation */
+            transform-origin: bottom left; opacity: 0; transform: scale(0.9);
+            transition: opacity 0.15s ease, transform 0.15s var(--bezier-pop);
+        }
+        body.light-theme .popover-menu { border: 1px solid rgba(0,0,0,0.08); }
+        .popover-menu.show { display: flex; opacity: 1; transform: scale(1); }
+        
+        .menu-option {
+            padding: 12px 16px; border-radius: 12px; cursor: pointer; font-size: 14px; color: var(--text-primary);
+            display: flex; align-items: center; gap: 12px; position: relative; overflow: hidden;
+            transition: background 0.1s;
+        }
+        .menu-option:hover { background: var(--surface-hover); }
+        .menu-option.danger { color: #ff8b8b; }
+        .menu-separator { height: 1px; background: rgba(255,255,255,0.1); margin: 4px 8px; }
+
+        .icon-svg { width: 20px; height: 20px; stroke: currentColor; stroke-width: 2; fill: none; }
+
+        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 2000; align-items: center; justify-content: center; backdrop-filter: blur(4px); }
+        .modal.active { display: flex; }
+        .modal-box { 
+            background: var(--menu-bg); padding: 24px; border-radius: 24px; width: 400px; 
+            color: var(--text-primary); box-shadow: var(--shadow-elevation);
+            transform: scale(0.95); opacity: 0; transition: transform 0.2s var(--bezier-pop), opacity 0.2s;
+        }
+        .modal.active .modal-box { transform: scale(1); opacity: 1; }
+        
+        .modal input { width: 100%; padding: 12px; margin: 8px 0 20px; background: rgba(0,0,0,0.1); border: 1px solid transparent; color: var(--text-primary); border-radius: 8px; }
+        .modal input:focus { border-color: var(--active-bg); }
+        .modal-btns { text-align: right; }
+        .btn { padding: 8px 24px; border-radius: 20px; border: none; cursor: pointer; font-weight: 500; margin-left: 10px; position: relative; overflow: hidden; }
+        .btn-primary { background: var(--active-bg); color: var(--active-text); }
+        .btn-text { background: transparent; color: var(--active-bg); }
+
+        .theme-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+        .theme-btn { 
+            padding: 15px; border-radius: 12px; border: 2px solid transparent; cursor: pointer; 
+            text-align: center; background: rgba(0,0,0,0.1); color: var(--text-primary);
+            transition: 0.2s;
+        }
+        .theme-btn:hover { background: rgba(0,0,0,0.2); }
+        .theme-btn.selected { border-color: var(--active-bg); background: rgba(0,0,0,0.05); color: var(--active-bg); font-weight: bold; }
+
+        .ripple {
+            position: absolute; border-radius: 50%; background: rgba(255, 255, 255, 0.1);
+            transform: scale(0); animation: ripple-anim 0.6s ease-out; pointer-events: none;
+        }
+        @keyframes ripple-anim { to { transform: scale(3); opacity: 0; } }
+
+        @media (max-width: 768px) {
+            .sidebar { position: fixed; height: 100%; left: 0; transform: translateX(-100%); width: 280px; }
+            .sidebar.show { transform: translateX(0); }
+            .sidebar.collapsed { width: 280px; } 
+            .main-header { padding-left: 50px; } 
+            .mobile-toggle { 
+                opacity: 1; pointer-events: auto; transform: translateX(0);
+            } 
+            .sidebar.show ~ .main-area .mobile-toggle { 
+                opacity: 0; pointer-events: none; transform: translateX(-20px);
+            }
+            .chat-scroll, .input-area { padding-left: 16px; padding-right: 16px; }
+            .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 90; }
+            .sidebar.show + .sidebar-overlay { display: block; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <button class="menu-btn ripple-target" onclick="toggleSidebar()">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
+            </button>
+        </div>
+
+        <div class="sidebar-content">
+            <button class="new-chat-btn ripple-target" onclick="createNewGame()">
+                <span class="plus-icon">+</span>
+                <span data-i18n="newChat">New chat</span>
+            </button>
+
+            <div class="history-section-title" data-i18n="recent">Recent</div>
+            <div class="history-list" id="history-list"></div>
+
+            <div class="settings-area">
+                <button class="settings-btn ripple-target" id="settings-trigger" onclick="showSettingsMenu(event)">
+                    <svg class="icon-svg" viewBox="0 0 24 24"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.09a2 2 0 0 1-1-1.74v-.47a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+                    <span data-i18n="settings">Settings</span>
+                </button>
+            </div>
+        </div>
+    </aside>
+    
+    <div class="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+    <main class="main-area">
+        <div class="main-header">
+            <button class="mobile-toggle" onclick="toggleSidebar()">
+                 <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
+            </button>
+            <div class="project-title">
+                Math Enigma Pro
+            </div>
+        </div>
+
+        <div class="chat-scroll" id="chat-box"></div>
+
+        <div class="input-area">
+            <div class="input-wrapper">
+                <textarea class="chat-input" id="user-input" placeholder="Ask Math Enigma..." rows="1"></textarea>
+            </div>
+            <button class="send-btn ripple-target" id="send-btn" onclick="sendMessage()">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+            </button>
+        </div>
+    </main>
+</div>
+
+<div class="popover-menu" id="settings-menu">
+    <div class="menu-option ripple-target" onclick="openThemeModal()">
+        <svg class="icon-svg" viewBox="0 0 24 24"><circle cx="13.5" cy="6.5" r=".5"/><circle cx="17.5" cy="10.5" r=".5"/><circle cx="8.5" cy="7.5" r=".5"/><circle cx="6.5" cy="12.5" r=".5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.55 0 1-.45 1-1 0-.28-.11-.53-.29-.71-.2-.2-.29-.46-.29-.71 0-.55.45-1 1-1h.5c1.1 0 2-.9 2-2v-1.5c0-.83.67-1.5 1.5-1.5S19 7.67 19 8.5V9c0 .55.45 1 1 1h1c.55 0 1-.45 1-1 0-5.5-4.5-10-10-10z"/></svg>
+        <span data-i18n="theme">Theme</span>
+    </div>
+    <div class="menu-option ripple-target" onclick="toggleLanguage()">
+        <svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+        <span data-i18n="language">Language (En)</span>
+    </div>
+    <div class="menu-option ripple-target" onclick="openApiModal()">
+        <svg class="icon-svg" viewBox="0 0 24 24"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+        <span data-i18n="api">API Settings</span>
+    </div>
+    <div class="menu-separator"></div>
+    <div class="menu-option ripple-target" onclick="showRules()">
+        <svg class="icon-svg" viewBox="0 0 24 24"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>
+        <span data-i18n="rules">Rules</span>
+    </div>
+    <a href="https://cichlider.github.io/Math-Enigma/" target="_blank" class="menu-option ripple-target">
+        <svg class="icon-svg" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+        <span>Web</span>
+    </a>
+</div>
+
+<div class="popover-menu" id="context-menu">
+    <div class="menu-option ripple-target" onclick="handleMenuAction('rename')">
+        <svg class="icon-svg" viewBox="0 0 24 24"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+        <span>Rename</span>
+    </div>
+    <div class="menu-option ripple-target" onclick="handleMenuAction('pin')">
+        <svg class="icon-svg" viewBox="0 0 24 24"><path d="M21.41 11.58l-9-9C12.05 2.22 11.55 2 11 2H4c-1.1 0-2 .9-2 2v7c0 .55.22 1.05.59 1.42l9 9c.36.36.86.58 1.41.58.55 0 1.05-.22 1.41-.59l7-7c.37-.36.59-.86.59-1.41 0-.55-.23-1.06-.59-1.42zM5.5 7C4.67 7 4 6.33 4 5.5S4.67 4 5.5 4 7 4.67 7 5.5 6.33 7 5.5 7z"/></svg>
+        <span>Pin</span>
+    </div>
+    <div class="menu-option danger ripple-target" onclick="handleMenuAction('delete')">
+        <svg class="icon-svg" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+        <span>Delete</span>
+    </div>
+</div>
+
+<div class="modal" id="theme-modal">
+    <div class="modal-box">
+        <h3 data-i18n="themeTitle">Select Theme</h3>
+        <div class="theme-grid">
+            <div class="theme-btn selected" onclick="setTheme('dark', this)">Dark</div>
+            <div class="theme-btn" onclick="setTheme('light', this)">Light</div>
+            <div class="theme-btn" onclick="setTheme('midnight', this)">Midnight</div>
+            <div class="theme-btn" onclick="setTheme('forest', this)">Forest</div>
+        </div>
+        <div class="modal-btns">
+            <button class="btn btn-primary ripple-target" onclick="closeThemeModal()" data-i18n="close">Close</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal" id="api-modal">
+    <div class="modal-box">
+        <h3 data-i18n="apiTitle">API Settings</h3>
+        <label>API Key (Google AI Studio / OpenAI)</label>
+        <input type="password" id="api-key" placeholder="AIza... or sk-...">
+        <label>Base URL (Default: Google)</label>
+        <input type="text" id="api-url" value="https://generativelanguage.googleapis.com">
+        <label>Model</label>
+        <input type="text" id="api-model" value="gemini-1.5-flash">
+        <div class="modal-btns">
+            <button class="btn btn-text ripple-target" onclick="closeApiModal()" data-i18n="cancel">Cancel</button>
+            <button class="btn btn-primary ripple-target" onclick="saveApiSettings()" data-i18n="save">Save</button>
+        </div>
+    </div>
+</div>
+
+<script>
+/* === 国际化配置 === */
+    const i18n = {
+        en: { newChat: "New Chat", recent: "Recent", settings: "Settings", language: "Language (Zh)", api: "API Settings", rules: "Rules", apiTitle: "API Settings", theme:"Theme", themeTitle:"Select Theme", cancel: "Cancel", save: "Save", close:"Close", placeholder: "Ask Math Enigma..." },
+        zh: { newChat: "新对话", recent: "历史记录", settings: "设置", language: "语言 (En)", api: "API 设置", rules: "游戏规则", apiTitle: "API 配置", theme:"外观", themeTitle:"选择主题", cancel: "取消", save: "保存", close:"关闭", placeholder: "输入你的猜测..." }
+    };
+    
+    /* === 全局状态 === */
+    let currentTheme = 'dark';
+    let currentLang = 'en';
+    let games = [];
+    let currentGameId = null;
+    let contextMenuTargetId = null;
+    
+    // 默认配置 (仿Chatbox风格的默认值)
+    let apiConfig = { 
+        key: '', 
+        url: 'https://generativelanguage.googleapis.com', 
+        model: 'gemini-1.5-flash' 
+    };
+
+    /* === 工具函数 === */
+    function hexToRgb(hex) { const b = parseInt(hex.replace('#',''),16); return [(b>>16)&255, (b>>8)&255, b&255]; }
+    function interpolateColor(c1, c2, f) { const r = c1.slice(); for(let i=0;i<3;i++) r[i] = Math.round(r[i]+f*(c2[i]-c1[i])); return `rgb(${r[0]},${r[1]},${r[2]})`; }
+    
+    function updateBubbleColors() {
+        const bubbles = document.querySelectorAll('.message-row.me .bubble');
+        const count = bubbles.length;
+        if(count===0) return;
+        const style = getComputedStyle(document.body);
+        const start = hexToRgb(style.getPropertyValue('--gradient-start').trim());
+        const end = hexToRgb(style.getPropertyValue('--gradient-end').trim());
+        bubbles.forEach((b, i) => {
+            let f = count > 1 ? (count - 1 - i) / (count - 1) : 0;
+            b.style.backgroundColor = interpolateColor(start, end, Math.min(f,1));
+        });
+    }
+
+    /* === 初始化与事件监听 === */
+    window.onload = () => {
+        initRipple();
+        loadSettings();
+        loadGames();
+        updateLanguageUI();
+        if(games.length===0) createNewGame(); else switchGame(games[0].id);
+        
+        // 全局点击关闭菜单
+        document.addEventListener('click', e => {
+            if(!e.target.closest('#settings-trigger') && !e.target.closest('#settings-menu')) closeSettingsMenu();
+            if(!e.target.closest('.kebab-menu-btn') && !e.target.closest('#context-menu')) document.getElementById('context-menu').classList.remove('show');
+        });
+    };
+
+    function toggleSidebar() { const sb=document.getElementById('sidebar'); if(window.innerWidth<=768) sb.classList.toggle('show'); else sb.classList.toggle('collapsed'); }
+    function openThemeModal() { closeSettingsMenu(); document.getElementById('theme-modal').classList.add('active'); }
+    function closeThemeModal() { document.getElementById('theme-modal').classList.remove('active'); }
+    
+    function setTheme(name, btn) {
+        document.body.classList.remove('theme-light','theme-midnight','theme-forest');
+        document.querySelectorAll('.theme-btn').forEach(b=>b.classList.remove('selected'));
+        if(name!=='dark') document.body.classList.add(`theme-${name}`);
+        btn.classList.add('selected'); currentTheme=name; setTimeout(updateBubbleColors,100);
+    }
+
+    function initRipple() {
+        document.addEventListener('mousedown', e => {
+            if(e.target.closest('.kebab-menu-btn')) return;
+            const t = e.target.closest('.ripple-target');
+            if(!t) return;
+            const r = t.getBoundingClientRect(), size = Math.max(r.width, r.height);
+            const rip = document.createElement('span');
+            rip.className = 'ripple';
+            rip.style.width = rip.style.height = `${size}px`;
+            rip.style.left = `${e.clientX - r.left - size/2}px`;
+            rip.style.top = `${e.clientY - r.top - size/2}px`;
+            t.appendChild(rip);
+            setTimeout(()=>rip.remove(),600);
+        });
+    }
+
+    /* === 聊天渲染逻辑 === */
+    function renderChat() {
+        const box = document.getElementById('chat-box'); box.innerHTML='';
+        const game = games.find(g=>g.id===currentGameId);
+        if(!game) return;
+        game.messages.forEach(msg => appendMessage(msg.sender, msg.text, false));
+        scrollToBottom();
+        requestAnimationFrame(updateBubbleColors);
+    }
+
+    function appendMessage(sender, text, animate = true) {
+        const box = document.getElementById('chat-box');
+        const row = document.createElement('div');
+        row.className = `message-row ${sender}`;
+        const bubble = document.createElement('div');
+        bubble.className = `bubble ${sender}`;
+        if(text.startsWith("❌")) bubble.classList.add('error');
+        
+        // 解析 Markdown 和 Latex
+        bubble.innerHTML = marked.parse(text);
+        row.appendChild(bubble);
+        box.appendChild(row);
+        
+        if(window.MathJax) MathJax.typesetPromise([bubble]);
+        if(animate) scrollToBottom();
+        if(sender==='me') requestAnimationFrame(updateBubbleColors);
+    }
+
+    /* === 游戏逻辑 === */
+    function createNewGame() {
+        const newId = Date.now();
+        // 随机生成复杂一点的函数汤底，增加趣味性
+        const functions = [
+            "Function: f(x) = (cos(sin(cos(x))) + sin(x))/2",
+            "Function: f(x) = x * sin(1/x)",
+            "Function: f(x) = e^(-x^2) * cos(2*pi*x)",
+            "Function: f(x) = abs(x) / x (Standard Signum)",
+            "Function: f(x) = floor(x) * cos(x)"
+        ];
+        const soup = functions[Math.floor(Math.random() * functions.length)];
+        const name = currentLang === 'en' ? "New Chat" : "新对话";
+        
+        games.unshift({ id: newId, time: new Date().toLocaleTimeString(), name, pinned: false, messages: [], soup });
+        saveGames(); renderHistory();
+        
+        const first = document.querySelector('.history-item');
+        if(first) first.classList.add('entering');
+        
+        switchGame(newId);
+        setTimeout(() => appendMessage('them', currentLang==='en' 
+            ? "**System Ready.**\nI have generated a function $f(x)$. Guess it!" 
+            : "**系统就绪**\n我已经生成了一个函数 $f(x)$。请通过输入 $x$ 的值或询问性质来猜出它！", true), 500);
+    }
+
+    function switchGame(id) {
+        currentGameId = id; renderHistory(); renderChat();
+        if(window.innerWidth<=768) document.getElementById('sidebar').classList.remove('show');
+    }
+
+    /* === 核心：发送与 API 处理 === */
+    async function sendMessage() {
+        const input = document.getElementById('user-input');
+        const text = input.value.trim();
+        if(!text) return;
+        
+        if(!apiConfig.key) { 
+            alert(currentLang==='en'?"Please set API Key first":"请先配置 API Key");
+            openApiModal(); 
+            return; 
+        }
+
+        input.value=''; input.style.height='auto';
+        document.getElementById('send-btn').classList.remove('active');
+        
+        const game = games.find(g=>g.id===currentGameId);
+        if(!game) return;
+
+        // 记录用户消息
+        game.messages.push({ sender:'me', text });
+        if(game.messages.filter(m=>m.sender==='me').length === 1) {
+            game.name = text.slice(0,18); // 更新标题
+        }
+        saveGames(); renderHistory(); appendMessage('me', text);
+
+        // 显示 Loading
+        const loadingId = 'loading-'+Date.now();
+        const row = document.createElement('div');
+        row.className = 'message-row them';
+        row.id = loadingId;
+        row.innerHTML = `<div class="bubble them"><div class="spinner"></div></div>`;
+        document.getElementById('chat-box').appendChild(row);
+        scrollToBottom();
+
+        try {
+            const reply = await callLLM(text, game);
+            document.getElementById(loadingId).remove();
+            
+            game.messages.push({ sender:'them', text: reply });
+            saveGames(); 
+            appendMessage('them', reply);
+        } catch (e) {
+            document.getElementById(loadingId).remove();
+            console.error(e);
+            appendMessage('them', `❌ API Error: ${e.message}`);
+        }
+    }
+
+    /**
+     * Chatbox 风格的通用 API 路由
+     * 自动识别是 Google Native 还是 OpenAI 格式
+     */
+    async function callLLM(userText, game) {
+        const url = apiConfig.url.trim();
+        const model = apiConfig.model.trim();
+        const apiKey = apiConfig.key.trim();
+        const systemPrompt = game.soup;
+
+        // 1. Google Native API (Generative Language)
+        if (url.includes('goog') && url.includes('generativelanguage')) {
+            return await fetchGeminiNative(userText, game, apiKey, model, systemPrompt);
+        }
+        
+        // 2. OpenAI Compatible (OpenAI, DeepSeek, Ollama, Groq, etc.)
+        // 自动补全路径：如果用户只写了 https://api.deepseek.com，自动加上 /v1/chat/completions
+        let endpoint = url;
+        if (!endpoint.endsWith('/v1/chat/completions') && !endpoint.endsWith('/chat/completions')) {
+             // 简单的启发式补全
+             endpoint = endpoint.replace(/\/$/, "") + "/chat/completions";
+        }
+
+        return await fetchOpenAICompatible(userText, game, apiKey, model, systemPrompt, endpoint);
+    }
+
+    /**
+     * 处理 OpenAI 兼容接口
+     */
+    async function fetchOpenAICompatible(text, game, key, model, system, endpoint) {
+        const messages = [{ role: 'system', content: system }];
+        
+        // 历史记录构建
+        game.messages.forEach(m => {
+            // 简单过滤掉当前的请求文本，避免重复（如果有的话）
+            if (m.text !== text) {
+                messages.push({ role: m.sender === 'me' ? 'user' : 'assistant', content: m.text });
+            }
+        });
+        messages.push({ role: 'user', content: text });
+
+        const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${key}`
+            },
+            body: JSON.stringify({
+                model: model,
+                messages: messages,
+                temperature: 0.7
+            })
+        });
+
+        const data = await res.json();
+        
+        if (!res.ok) {
+            const errParam = data.error?.message || data.message || res.statusText;
+            throw new Error(errParam);
+        }
+
+        return data.choices?.[0]?.message?.content || "No content returned";
+    }
+
+    /**
+     * 处理 Google Gemini Native 接口
+     * 特点：System Prompt 单独字段，User/Model 必须交替，不能有 System role
+     */
+    async function fetchGeminiNative(text, game, key, model, system) {
+        // 清洗 Model 名称 (移除 'models/' 前缀如果用户多写了)
+        const cleanModel = model.replace(/^models\//, '');
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${cleanModel}:generateContent?key=${key}`;
+
+        // 构建历史 - Gemini 严格要求 User 和 Model 交替出现
+        // 如果历史记录里有连续的 User，需要合并
+        const contents = [];
+        let lastRole = null;
+
+        game.messages.forEach(m => {
+            if (m.text === text) return; // 跳过最后一条（稍后添加）
+            
+            const currentRole = m.sender === 'me' ? 'user' : 'model';
+            
+            if (currentRole === lastRole) {
+                // 合并到上一条
+                contents[contents.length - 1].parts[0].text += "\n" + m.text;
+            } else {
+                contents.push({ role: currentRole, parts: [{ text: m.text }] });
+                lastRole = currentRole;
+            }
+        });
+
+        // 确保最后一条是 user
+        if (lastRole === 'user') {
+             // 如果上一条也是 user，合并当前的 text
+             contents[contents.length - 1].parts[0].text += "\n" + text;
+        } else {
+             contents.push({ role: 'user', parts: [{ text: text }] });
+        }
+
+        const payload = {
+            contents: contents,
+            systemInstruction: { parts: [{ text: system }] }, // Gemini 专用的 System Prompt 字段
+            generationConfig: { temperature: 0.7 }
+        };
+
+        const res = await fetch(apiUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+            throw new Error(data.error?.message || res.statusText);
+        }
+
+        return data.candidates?.[0]?.content?.parts?.[0]?.text || "No content returned";
+    }
+
+    /* === 侧边栏与历史记录管理 === */
+    function renderHistory() {
+        const list = document.getElementById('history-list'); list.innerHTML='';
+        const sorted = [...games].sort((a,b)=>(a.pinned===b.pinned)?b.id-a.id:(a.pinned?-1:1));
+        sorted.forEach(g => {
+            const div = document.createElement('div');
+            div.className = `history-item ripple-target ${g.id===currentGameId?'active':''}`;
+            div.onclick = (e) => { if(!e.target.closest('.kebab-menu-btn')) switchGame(g.id); };
+            const pin = g.pinned ? '<span class="pinned-icon">📌</span>' : '';
+            div.innerHTML = `<span class="item-text">${pin}${g.name||g.time}</span><button class="kebab-menu-btn" onmousedown="event.stopPropagation()" onclick="showContextMenu(event, ${g.id})">⋮</button>`;
+            list.appendChild(div);
+        });
+    }
+
+    function showSettingsMenu(e) {
+        e.stopPropagation();
+        const menu=document.getElementById('settings-menu'), btn=document.getElementById('settings-trigger');
+        const r=btn.getBoundingClientRect(); menu.style.bottom=`${window.innerHeight-r.top}px`; menu.style.left=`${r.left}px`;
+        if(menu.classList.contains('show')) closeSettingsMenu(); else { menu.classList.add('show'); btn.classList.add('active'); }
+    }
+    function closeSettingsMenu() { document.getElementById('settings-menu').classList.remove('show'); document.getElementById('settings-trigger').classList.remove('active'); }
+    
+    function showContextMenu(e, id) { e.stopPropagation(); contextMenuTargetId=id; const m=document.getElementById('context-menu'), r=e.target.getBoundingClientRect(); m.style.top=`${r.bottom}px`; m.style.left=`${r.left}px`; m.classList.add('show'); }
+    function handleMenuAction(a) {
+        const i=games.findIndex(g=>g.id===contextMenuTargetId); if(i===-1)return; const g=games[i];
+        if(a==='delete'&&confirm(`Delete conversation?`)) { games.splice(i,1); if(currentGameId===contextMenuTargetId) { currentGameId=games.length?games[0].id:null; renderChat(); } saveGames(); renderHistory(); }
+        else if(a==='rename') { const n=prompt("Rename:", g.name); if(n) { g.name=n; saveGames(); renderHistory(); } }
+        else if(a==='pin') { g.pinned=!g.pinned; saveGames(); renderHistory(); }
+        document.getElementById('context-menu').classList.remove('show');
+    }
+
+    function toggleLanguage() { currentLang = currentLang==='en'?'zh':'en'; updateLanguageUI(); }
+    function updateLanguageUI() { 
+        document.querySelectorAll('[data-i18n]').forEach(el => { const k=el.getAttribute('data-i18n'); if(i18n[currentLang][k]) el.innerText=i18n[currentLang][k]; });
+        document.getElementById('user-input').placeholder = i18n[currentLang].placeholder;
+    }
+    function showRules() { 
+        alert(currentLang==='en' 
+            ? "Rules: I have generated a hidden function f(x). You can input specific values of x (e.g., 'x=3') or ask about its properties (e.g., 'Is it periodic?')." 
+            : "规则：我生成了一个隐藏函数 f(x)。你可以输入 x 的值来查看结果（如 'x=3'），或者询问它的性质（如 '是周期函数吗？'）。"); 
+    }
+    function openApiModal() { closeSettingsMenu(); document.getElementById('api-modal').classList.add('active'); }
+    function closeApiModal() { document.getElementById('api-modal').classList.remove('active'); }
+    
+    function saveApiSettings() {
+        apiConfig.key = document.getElementById('api-key').value.trim();
+        apiConfig.url = document.getElementById('api-url').value.trim();
+        apiConfig.model = document.getElementById('api-model').value.trim();
+        
+        // 如果用户忘了写URL，给个默认值
+        if(!apiConfig.url) apiConfig.url = "https://generativelanguage.googleapis.com";
+        
+        localStorage.setItem('math_api_config', JSON.stringify(apiConfig));
+        closeApiModal(); 
+    }
+    
+    function saveGames() { localStorage.setItem('math_games_v3', JSON.stringify(games)); }
+    function loadGames() { const s=localStorage.getItem('math_games_v3'); if(s) games=JSON.parse(s); }
+    function loadSettings() { 
+        const s=localStorage.getItem('math_api_config'); 
+        if(s) { 
+            apiConfig=JSON.parse(s); 
+            document.getElementById('api-key').value=apiConfig.key; 
+            document.getElementById('api-url').value=apiConfig.url; 
+            document.getElementById('api-model').value=apiConfig.model; 
+        } 
+    }
+    function scrollToBottom() { const b=document.getElementById('chat-box'); b.scrollTop=b.scrollHeight; }
+
+    const inp = document.getElementById('user-input');
+    inp.addEventListener('input', function() { this.style.height='auto'; this.style.height=this.scrollHeight+'px'; 
+        const btn=document.getElementById('send-btn'); if(this.value.trim()) btn.classList.add('active'); else btn.classList.remove('active'); });
+    inp.addEventListener('keydown', e => { if(e.key==='Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } });
+</script>
+</body>
+</html>
