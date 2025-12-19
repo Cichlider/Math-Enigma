@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Math Enigma | Mobile Ready</title>
+    
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script src="https://unpkg.com/d3@3/d3.min.js"></script>
+    <script src="https://unpkg.com/function-plot@1/dist/function-plot.js"></script>
+
+    <style>
+        :root { --bg: #050505; --text: #888; --line: #fff; --accent: #888; }
+        
+        body { 
+            margin: 0; 
+            background: var(--bg); 
+            color: var(--text); 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            height: 100vh; /* 移动端可能需要 DVH，但 100vh 兼容性更好 */
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
+            overflow: hidden; 
+            user-select: none; 
+            -webkit-tap-highlight-color: transparent; /* 移除移动端点击高亮 */
+        }
+
+        /* 顶部标题 - 移动端缩小 */
+        header {
+            position: absolute;
+            top: 30px;
+            letter-spacing: 4px;
+            font-size: 0.7rem;
+            color: #444;
+            text-transform: uppercase;
+            text-align: center;
+            width: 100%;
+        }
+
+        /* 绘图区域容器 */
+        #plot-wrapper {
+            width: 95%;      /* 移动端占宽 95% */
+            max-width: 700px; /* 桌面端最大 700px */
+            height: 40vh;     /* 高度基于视口，防止键盘弹出遮挡 */
+            max-height: 450px;
+            min-height: 300px;
+            margin-bottom: 20px;
+            position: relative;
+            /* 居中 */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #plot-area { 
+            width: 100%; 
+            height: 100%; 
+            opacity: 0; 
+            transition: opacity 0.5s; 
+        }
+        #plot-area.show { opacity: 1; }
+
+        /* Function Plot 样式适配 */
+        .function-plot text { fill: #666 !important; font-size: 10px; font-family: monospace; }
+        .function-plot .domain { stroke: #444 !important; stroke-width: 1px; }
+        .function-plot .tick line { stroke: #222 !important; }
+        .function-plot path.line { stroke: var(--line) !important; stroke-width: 2px !important; filter: drop-shadow(0 0 6px rgba(255,255,255,0.4)); }
+
+        /* 公式容器 */
+        .formula-wrapper {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            width: 90%;
+            min-height: 60px;
+            margin-bottom: 30px;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: all 0.5s;
+        }
+        .formula-wrapper.show { opacity: 1; transform: translateY(0); }
+
+        /* Latex 字体适配 */
+        #latex { 
+            font-size: 1.8rem; 
+            color: #ddd; 
+            overflow-x: auto; /* 移动端长公式允许横向滚动 */
+            white-space: nowrap; 
+            padding-bottom: 5px; /* 滚动条间距 */
+            max-width: 85%; /* 留给复制按钮空间 */
+        }
+        /* 隐藏滚动条但保留功能 */
+        #latex::-webkit-scrollbar { height: 2px; }
+        #latex::-webkit-scrollbar-thumb { background: #333; }
+
+        /* 复制按钮 */
+        .copy-btn {
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 50%;
+            opacity: 0.5;
+            transition: all 0.2s;
+            flex-shrink: 0; /* 防止被挤压 */
+        }
+        .copy-btn:active { background: rgba(255,255,255,0.1); transform: scale(0.9); }
+        .copy-btn svg { width: 18px; height: 18px; fill: #aaa; }
+
+        /* 主按钮 */
+        .main-btn { 
+            background: transparent; 
+            border: 1px solid #333; 
+            color: #888; 
+            padding: 12px 40px; 
+            border-radius: 50px; 
+            cursor: pointer; 
+            font-size: 0.9rem;
+            letter-spacing: 2px; 
+            transition: 0.2s; 
+            /* 移动端加大触控区域 */
+            min-width: 160px;
+            touch-action: manipulation;
+        }
+        .main-btn:active { transform: scale(0.96); background: rgba(255,255,255,0.05); color: #fff; }
+        .main-btn:disabled { opacity: 0.3; cursor: default; transform: none; }
+
+        .meme-mode #latex { color: #f39c12; }
+
+        /* --- 移动端专用调整 (Media Query) --- */
+        @media (max-width: 600px) {
+            header { top: 20px; font-size: 0.6rem; letter-spacing: 2px; }
+            #plot-wrapper { width: 100%; height: 35vh; margin-bottom: 10px; }
+            #latex { font-size: 1.4rem; } /* 缩小公式字体 */
+            .main-btn { padding: 14px 0; width: 60%; font-size: 1rem; } /* 按钮更大更易按 */
+            
+            /* 调整绘图文字大小 */
+            .function-plot text { font-size: 9px; }
+        }
+    </style>
+</head>
+<body>
+
+    <header>Math Enigma</header>
+
+    <div id="plot-wrapper">
+        <div id="plot-area"></div>
+    </div>
+
+    <div class="formula-wrapper" id="formula-container">
+        <div id="latex"></div>
+        <button class="copy-btn" id="copy-btn" onclick="copyToClipboard()">
+            <svg id="icon-copy" viewBox="0 0 24 24"><path d="M16 1H8C6.34 1 5 2.34 5 4v16c0 1.66 1.34 3 3 3h8c1.66 0 3-1.34 3-3V4c0-1.66-1.34-3-3-3zm-2 5h-4V4h4v2z"/></svg>
+            <svg id="icon-check" viewBox="0 0 24 24" style="display:none;"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+        </button>
+    </div>
+
+    <button id="btn" class="main-btn" onclick="run()">GENERATE</button>
+
+    <script>
+        // ... AST 类定义保持不变 (Node, Atom, UnaryOp, BinaryOp) ...
+        class Node { toExec(){return""} toPlot(){return""} toLatex(){return""} }
+        class Atom extends Node {
+            constructor(v,p,e,l){super();this.val=v;this.plotVal=p||v;this.execVal=e||v;this.latexVal=l||v;}
+            toPlot(){return this.plotVal} toExec(){return this.execVal} toLatex(){return this.latexVal}
+        }
+        class Var extends Node { toPlot(){return"x"} toExec(){return"x"} toLatex(){return"x"} }
+        class UnaryOp extends Node {
+            constructor(o,c){super();this.op=o;this.child=c}
+            toPlot(){
+                if(this.op==="ln")return `log(abs(${this.child.toPlot()})+0.001)`;
+                if(this.op==="sqrt")return `sqrt(abs(${this.child.toPlot()}))`;
+                return `${this.op}(${this.child.toPlot()})`;
+            }
+            toExec(){
+                if(this.op==="ln")return `Math.log(Math.abs(${this.child.toExec()})+0.001)`;
+                if(this.op==="sqrt")return `Math.sqrt(Math.abs(${this.child.toExec()}))`;
+                if(this.op==="exp")return `Math.exp(${this.child.toExec()})`;
+                return `Math.${this.op}(${this.child.toExec()})`;
+            }
+            toLatex(){
+                if(this.op==="ln")return `\\ln(|${this.child.toLatex()}|)`;
+                if(this.op==="sqrt")return `\\sqrt{|${this.child.toLatex()}|}`;
+                if(this.op==="exp")return `e^{${this.child.toLatex()}}`;
+                return `\\${this.op}(${this.child.toLatex()})`;
+            }
+        }
+        class BinaryOp extends Node {
+            constructor(o,l,r){super();this.op=o;this.left=l;this.right=r}
+            toPlot(){return `(${this.left.toPlot()}${this.op}${this.right.toPlot()})`}
+            toExec(){return `(${this.left.toExec()}${this.op}${this.right.toExec()})`}
+            toLatex(){
+                if(this.op==="/")return `\\frac{${this.left.toLatex()}}{${this.right.toLatex()}}`;
+                if(this.op==="*")return `${this.left.toLatex()}\\cdot${this.right.toLatex()}`;
+                return `${this.left.toLatex()}${this.op}${this.right.toLatex()}`;
+            }
+        }
+
+        const ATOMS = [new Atom("2"),new Atom("3"),new Atom("pi","PI","Math.PI","\\pi"),new Atom("e","E","Math.E","e")];
+        const OPS_UNARY = ["sin","cos","ln","sqrt","exp"];
+        const OPS_BINARY = ["+","-","*","/"];
+        function randInt(n){return Math.floor(Math.random()*n)}
+
+        function generateAST(depth, forceVar) {
+            if(depth<=0){return forceVar?new Var():(Math.random()<0.4?new Var():ATOMS[randInt(ATOMS.length)])}
+            const r=Math.random();
+            if(r<0.15&&!forceVar){return Math.random()<0.5?new Var():ATOMS[randInt(ATOMS.length)]}
+            else if(r<0.65){return new UnaryOp(OPS_UNARY[randInt(OPS_UNARY.length)],generateAST(depth-1,forceVar))}
+            else{
+                let op=OPS_BINARY[randInt(OPS_BINARY.length)], lf=false, rf=false;
+                if(forceVar)Math.random()<0.5?lf=true:rf=true;
+                return new BinaryOp(op,generateAST(depth-1,lf),generateAST(Math.max(0,depth-2),rf));
+            }
+        }
+
+        function validate(ast) {
+            const code=ast.toExec();
+            let func; try{func=new Function("x",`return ${code};`)}catch(e){return null}
+            const pts=[-4,-2,-0.5,0.5,2,4,3.14], res=[];
+            for(let x of pts){let y=func(x);if(isFinite(y)&&!isNaN(y))res.push({x,y})}
+            if(res.length<5)return null;
+            const ys=res.map(p=>p.y), range=Math.max(...ys)-Math.min(...ys);
+            if(range<0.001)return null;
+            if(res.every(p=>Math.abs(p.y-p.x)<0.1)||res.every(p=>Math.abs(p.y+p.x)<0.1))return null;
+            const mid=(Math.max(...ys)+Math.min(...ys))/2, span=Math.max(range*1.5,10);
+            return {yDomain:[mid-span/2,mid+span/2],plotString:ast.toPlot(),latexString:ast.toLatex()};
+        }
+
+        let currentLatex = "";
+        let currentData = null; // 存储当前数据以便重绘
+
+        function copyToClipboard() {
+            if(!currentLatex)return;
+            navigator.clipboard.writeText(currentLatex).then(()=>{
+                document.getElementById('icon-copy').style.display='none';
+                document.getElementById('icon-check').style.display='block';
+                setTimeout(()=>{
+                    document.getElementById('icon-copy').style.display='block';
+                    document.getElementById('icon-check').style.display='none';
+                },1500);
+            });
+        }
+
+        function drawPlot(data) {
+            const wrapper = document.getElementById('plot-wrapper');
+            const plotDiv = document.getElementById('plot-area');
+            
+            // 关键修复：动态获取当前容器的实际像素宽度
+            // 这样无论手机屏幕多宽，SVG 都会完美填充
+            const w = wrapper.clientWidth;
+            const h = wrapper.clientHeight;
+            
+            plotDiv.innerHTML = "";
+            try {
+                functionPlot({
+                    target: '#plot-area',
+                    width: w, 
+                    height: h,
+                    yAxis: { domain: data.yDomain },
+                    xAxis: { domain: [-6, 6] }, // X轴保持固定，适合手机竖屏
+                    grid: true,
+                    data: [{
+                        fn: data.plotString,
+                        nSamples: 2000, // 保持高采样率
+                        graphType: 'polyline'
+                    }],
+                    disableZoom: true
+                });
+            } catch(e) { console.error(e); }
+        }
+
+        function run() {
+            const btn = document.getElementById('btn');
+            const plotDiv = document.getElementById('plot-area');
+            const formDiv = document.getElementById('formula-container');
+            const latexDiv = document.getElementById('latex');
+            const body = document.body;
+
+            btn.disabled = true;
+            plotDiv.classList.remove('show');
+            formDiv.classList.remove('show');
+            body.classList.remove('meme-mode');
+
+            setTimeout(() => {
+                let data = null;
+                if (Math.random() < 0.001) {
+                    body.classList.add('meme-mode');
+                    data = {plotString:"sin(x)+114514",latexString:"\\sin(x)+114514",yDomain:[114513,114515]};
+                } else {
+                    let ast=null,i=0;
+                    while(!data&&i<200){ast=generateAST(Math.floor(Math.random()*3)+2,true);data=validate(ast);i++}
+                    if(!data) data={plotString:"sin(x)",latexString:"\\sin(x)",yDomain:[-2,2]};
+                }
+
+                currentLatex = data.latexString;
+                currentData = data; // 保存数据用于 Resize
+
+                katex.render(`f(x) = ${data.latexString}`, latexDiv);
+                
+                // 绘制
+                drawPlot(data);
+
+                plotDiv.classList.add('show');
+                formDiv.classList.add('show');
+                btn.disabled = false;
+            }, 300);
+        }
+
+        // 监听窗口大小变化（旋转屏幕或调整浏览器窗口）
+        window.addEventListener('resize', () => {
+            if (currentData) {
+                // 不重新生成公式，只重新绘制 SVG 以适应新尺寸
+                drawPlot(currentData);
+            }
+        });
+
+        window.onload = run;
+    </script>
+</body>
+</html>
