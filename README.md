@@ -1,5 +1,4 @@
-# 🧮 Math Enigma | Function Synthesis Engine
-
+# Math Enigma | 数学海龟汤
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Tech](https://img.shields.io/badge/HTML5-KaTeX-green)
 ![Style](https://img.shields.io/badge/Style-Minimalist-black)
