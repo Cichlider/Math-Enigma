@@ -6,10 +6,10 @@
 
 > 一个基于 Web 的极简主义数学函数生成器。它不仅能“写”出复杂的复合函数，还能“画”出优美的函数曲线。
 
-🔗 **在线体验（Live Demo）**
+🔗 **在线体验 (Live Demo)**
 👉 [https://cichlider.github.io/Math-Enigma/](https://cichlider.github.io/Math-Enigma/)
 
-📦 **GitHub 仓库（Source Code）**
+📦 **GitHub 仓库 (Source Code)**
 👉 [https://github.com/Cichlider/Math-Enigma](https://github.com/Cichlider/Math-Enigma)
 
 ---
@@ -20,13 +20,13 @@
 
 > 极客风格，发光曲线，适合夜间沉浸体验。
 
-![Dark Mode Preview](./picture/desktop.png)
+![Dark Mode Preview](./picture/dark.png)
 
 ### ☀️ 浅色模式 (Light Mode)
 
 > 经典教科书风格，白底黑字，清晰锐利。
 
-![Light Mode Preview](./picture/mobile.png)
+![Light Mode Preview](./picture/light.png)
 
 ---
 
@@ -36,7 +36,6 @@
 * **📐 专业公式渲染**: 使用 **KaTeX** 的 `aligned` 环境与 `\displaystyle` 模式，呈现如教科书般完美的数学排版。
 * **🧠 AST 驱动生成**: 抛弃简单的字符串拼接，采用**抽象语法树 (AST)** 构建数学逻辑，确保生成的函数结构严谨。
 * **🛡️ 智能验证管线**: 内置“Matlab 级”数值验证：
-
   * **反常数**: 自动过滤 $f(x) = \cos(e^\pi)$ 这类伪装成函数的常数。
   * **反平凡**: 自动剔除 $f(x)=x$ 等过于简单的线性函数。
   * **定义域保护**: 自动处理 $\ln(x), \sqrt{x}$ 的定义域问题，防止绘图空白。
@@ -74,10 +73,9 @@
 本项目为**单文件 (Single-File)** 架构，无需 Node.js 环境或构建步骤。
 
 1. 克隆或下载本项目
-
    ```bash
-   git clone https://github.com/Cichlider/Math-Enigma.git
-   ```
+   git clone [https://github.com/Cichlider/Math-Enigma.git](https://github.com/Cichlider/Math-Enigma.git)```
+
 2. 确保电脑联网（需要加载 CDN 资源）
 3. 直接打开 `index.html`
 
@@ -96,5 +94,3 @@
 
 Copyright (c) 2025 **Cichlider**
 Licensed under the **MIT License**
-
----
