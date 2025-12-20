@@ -2,11 +2,8 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>Math Enigma | 数学海龟汤</title>
-    
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🐢</text></svg>">
-
-    </head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Fixed Function Render</title>
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
@@ -14,9 +11,9 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/function-plot/1.18.1/function-plot.js"></script>
 
     <style>
-        /* ================= 视觉系统 ================= */
+        /* ================= 样式系统 (保持原汁原味) ================= */
         :root {
-            --bg: #050505; --text: #888; --formula: #fff; /* 公式颜色调更亮 */
+            --bg: #050505; --text: #888; --formula: #fff;
             --line-color: #fff; --line-glow: rgba(255, 255, 255, 0.5);
             --grid-line: rgba(255, 255, 255, 0.08); 
             --origin-line: rgba(255, 255, 255, 0.6); 
@@ -24,29 +21,24 @@
             --btn-border: #333; --btn-hover: rgba(255,255,255,0.1);
             --transition-speed: 0.6s;
         }
-
         [data-theme="light"] {
             --bg: #ffffff; --text: #666; --formula: #000;
             --line-color: #2c3e50; --line-glow: rgba(44, 62, 80, 0.2);
             --grid-line: rgba(0, 0, 0, 0.06); --origin-line: rgba(0, 0, 0, 0.8);
             --axis-line: rgba(0, 0, 0, 0.2); --btn-border: #ccc; --btn-hover: rgba(0,0,0,0.05);
         }
-
         body { 
             margin: 0; background: var(--bg); color: var(--text); 
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; height: 100vh; 
             display: flex; flex-direction: column; align-items: center; justify-content: center; 
             overflow: hidden; user-select: none; transition: background 0.5s ease;
         }
-
-        /* 顶部栏 */
         .top-bar { position: absolute; top: 0; width: 100%; padding: 20px 0; display: flex; justify-content: center; z-index: 10; }
         header { letter-spacing: 4px; font-size: 0.7rem; text-transform: uppercase; font-weight: 600; opacity: 0.6; }
         .theme-toggle { position: absolute; right: 20px; top: 15px; background: transparent; border: none; cursor: pointer; padding: 8px; color: var(--text); transition: transform 0.3s; }
         .theme-toggle:active { transform: rotate(30deg); }
         .theme-toggle svg { width: 20px; height: 20px; fill: currentColor; }
 
-        /* 绘图区 */
         #plot-wrapper { 
             width: 95%; max-width: 700px; height: 40vh; max-height: 450px; min-height: 300px; 
             margin-bottom: 20px; position: relative; display: flex; align-items: center; justify-content: center; 
@@ -57,7 +49,7 @@
         }
         #plot-area.show { opacity: 1; }
 
-        /* Function Plot 样式 */
+        /* Function Plot 定制样式 */
         .function-plot text { fill: var(--text) !important; font-size: 10px; font-family: monospace; }
         .function-plot .grid .tick { stroke: var(--grid-line) !important; stroke-width: 1px; }
         .function-plot .domain { stroke: var(--axis-line) !important; stroke-width: 1px; fill: none; }
@@ -67,50 +59,35 @@
             filter: drop-shadow(0 0 8px var(--line-glow)); transition: d 0.5s ease; 
         }
 
-        /* 公式区 - 字体放大，适应 display style */
         .formula-wrapper { 
             display: flex; align-items: center; justify-content: center; gap: 10px; width: 90%; min-height: 80px; margin-bottom: 20px; 
             opacity: 0; transform: translateY(10px); transition: all var(--transition-speed) ease;
         }
         .formula-wrapper.show { opacity: 1; transform: translateY(0); }
         
-        #latex { 
-            font-size: 1.8rem; /* 稍微调大一点 */
-            color: var(--formula); 
-            overflow-x: auto; 
-            white-space: nowrap; 
-            padding-bottom: 5px; 
-            max-width: 85%; 
-        }
-        /* 隐藏滚动条 */
+        #latex { font-size: 1.8rem; color: var(--formula); overflow-x: auto; white-space: nowrap; padding-bottom: 5px; max-width: 85%; }
         #latex::-webkit-scrollbar { height: 0; width: 0; }
         
         .copy-btn { background: transparent; border: none; cursor: pointer; padding: 8px; opacity: 0.4; transition: 0.3s; flex-shrink: 0; }
         .copy-btn:hover { opacity: 1; }
         .copy-btn svg { width: 18px; height: 18px; fill: var(--text); }
 
-        /* 主按钮 */
         .main-btn { 
             background: transparent; border: 1px solid var(--btn-border); color: var(--text); 
             padding: 12px 40px; border-radius: 50px; cursor: pointer; font-size: 0.9rem; letter-spacing: 2px; 
-            transition: all 0.3s ease; min-width: 160px; touch-action: manipulation; position: relative; overflow: hidden;
+            transition: all 0.3s ease; min-width: 160px; touch-action: manipulation;
         }
         .main-btn:hover { border-color: var(--text); color: #fff; background: rgba(255,255,255,0.02); box-shadow: 0 0 20px rgba(255,255,255,0.05); }
         .main-btn:active { transform: scale(0.97); }
-        .main-btn:disabled { opacity: 0.3; cursor: default; transform: none; box-shadow: none; }
+        .main-btn:disabled { opacity: 0.3; cursor: default; }
 
-        footer {
-            position: absolute; bottom: 15px; font-size: 0.6rem; color: var(--text); opacity: 0.4; letter-spacing: 1px; pointer-events: none; text-align: center; width: 100%;
-        }
-
-        .meme-mode #latex { color: #f39c12; text-shadow: 0 0 10px rgba(243, 156, 18, 0.3); }
-        @media (max-width: 600px) { #plot-wrapper { height: 35vh; } #latex { font-size: 1.5rem; } }
+        footer { position: absolute; bottom: 15px; font-size: 0.6rem; color: var(--text); opacity: 0.4; letter-spacing: 1px; text-align: center; width: 100%; pointer-events: none; }
     </style>
 </head>
 <body>
 
     <div class="top-bar">
-        <header>Math Enigma</header>
+        <header>Render Test</header>
         <button class="theme-toggle" onclick="toggleTheme()">
             <svg id="icon-sun" viewBox="0 0 24 24" style="display:none"><path d="M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zM2 13h2c.55 0 1-.45 1-1s-.45-1-1-1H2c-.55 0-1 .45-1 1s.45 1 1 1zm18 0h2c.55 0 1-.45 1-1s-.45-1-1-1h-2c-.55 0-1 .45-1 1s.45 1 1 1zM11 2v2c0 .55.45 1 1 1s1-.45 1-1V2c0-.55-.45-1-1-1s-1 .45-1 1zm0 18v2c0 .55.45 1 1 1s1-.45 1-1v-2c0-.55-.45-1-1-1s-1 .45-1 1zM5.99 4.93c.39-.39.39-1.02 0-1.41-.39-.39-1.02-.39-1.41 0l-1.41 1.41c-.39.39-.39 1.02 0 1.41.39.39 1.02.39 1.41 0l1.41-1.41zm13.42 13.42c-.39.39-.39 1.02 0 1.41l1.41 1.41c.39.39 1.02.39 1.41 0 .39-.39.39-1.02 0-1.41l-1.41-1.41c-.39-.39-1.02-.39-1.41 0zM5.99 19.07l-1.41 1.41c-.39.39-.39 1.02 0 1.41.39.39 1.02.39 1.41 0l1.41-1.41c.39-.39.39-1.02 0-1.41-.39-.39-1.02-.39-1.41 0zm12.02-13.13c-.39-.39-1.02-.39-1.41 0-.39.39-.39 1.02 0 1.41l1.41 1.41c.39.39 1.02.39 1.41 0 .39-.39.39-1.02 0-1.41l-1.41-1.41z"/></svg>
             <svg id="icon-moon" viewBox="0 0 24 24"><path d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9c0-.46-.04-.92-.1-1.36-.98 1.37-2.58 2.26-4.4 2.26-3.03 0-5.5-2.47-5.5-5.5 0-1.82.89-3.42 2.26-4.4-.44-.06-.9-.1-1.36-.1z"/></svg>
@@ -127,53 +104,12 @@
         </button>
     </div>
 
-    <button id="btn" class="main-btn" onclick="run()">GENERATE</button>
+    <button id="btn" class="main-btn" onclick="run()">REFRESH</button>
 
-    <footer>&copy; 2025 Math Enigma. Designed by Cichlider.</footer>
+    <footer>&copy; 2025 Fixed Render.</footer>
 
     <script>
-        // ================= Core Logic =================
-        class Node { toExec(){return""} toPlot(){return""} toLatex(){return""} }
-        class Atom extends Node { constructor(v,p,e,l){super();this.val=v;this.plotVal=p||v;this.execVal=e||v;this.latexVal=l||v;} toPlot(){return this.plotVal} toExec(){return this.execVal} toLatex(){return this.latexVal} }
-        class Var extends Node { toPlot(){return"x"} toExec(){return"x"} toLatex(){return"x"} }
-        class UnaryOp extends Node { constructor(o,c){super();this.op=o;this.child=c} toPlot(){if(this.op==="ln")return `log(abs(${this.child.toPlot()})+0.001)`;if(this.op==="sqrt")return `sqrt(abs(${this.child.toPlot()}))`;return `${this.op}(${this.child.toPlot()})`} toExec(){if(this.op==="ln")return `Math.log(Math.abs(${this.child.toExec()})+0.001)`;if(this.op==="sqrt")return `Math.sqrt(Math.abs(${this.child.toExec()}))`;if(this.op==="exp")return `Math.exp(${this.child.toExec()})`;return `Math.${this.op}(${this.child.toExec()})`} toLatex(){if(this.op==="ln")return `\\ln(|${this.child.toLatex()}|)`;if(this.op==="sqrt")return `\\sqrt{|${this.child.toLatex()}|}`;if(this.op==="exp")return `e^{${this.child.toLatex()}}`;return `\\${this.op}(${this.child.toLatex()})`} }
-        class BinaryOp extends Node { 
-            constructor(o,l,r){super();this.op=o;this.left=l;this.right=r} 
-            toPlot(){return `(${this.left.toPlot()}${this.op}${this.right.toPlot()})`} 
-            toExec(){return `(${this.left.toExec()}${this.op}${this.right.toExec()})`} 
-            toLatex(){
-                if(this.op==="/")return `\\frac{${this.left.toLatex()}}{${this.right.toLatex()}}`;
-                if(this.op==="*")return `${this.left.toLatex()} \\cdot ${this.right.toLatex()}`;
-                return `${this.left.toLatex()} ${this.op} ${this.right.toLatex()}`;
-            } 
-        }
-
-        const ATOMS=[new Atom("2"),new Atom("3"),new Atom("pi","PI","Math.PI","\\pi"),new Atom("e","E","Math.E","e")];
-        const OPS_UNARY=["sin","cos","ln","sqrt","exp"]; const OPS_BINARY=["+","-","*","/"];
-        function randInt(n){return Math.floor(Math.random()*n)}
-
-        function generateAST(depth,forceVar){
-            if(depth<=0){return forceVar?new Var():(Math.random()<0.4?new Var():ATOMS[randInt(ATOMS.length)])}
-            const r=Math.random();
-            if(r<0.15&&!forceVar){return Math.random()<0.5?new Var():ATOMS[randInt(ATOMS.length)]}
-            else if(r<0.65){return new UnaryOp(OPS_UNARY[randInt(OPS_UNARY.length)],generateAST(depth-1,forceVar))}
-            else{let op=OPS_BINARY[randInt(OPS_BINARY.length)],lf=false,rf=false;if(forceVar)Math.random()<0.5?lf=true:rf=true;return new BinaryOp(op,generateAST(depth-1,lf),generateAST(Math.max(0,depth-2),rf))}
-        }
-
-        function validate(ast){
-            const code=ast.toExec();
-            let func; try{func=new Function("x",`return ${code};`)}catch(e){return null}
-            const pts=[-4,-2,-0.5,0.5,2,4,3.14],res=[];
-            for(let x of pts){let y=func(x);if(isFinite(y)&&!isNaN(y))res.push({x,y})}
-            if(res.length<5)return null;
-            const ys=res.map(p=>p.y),range=Math.max(...ys)-Math.min(...ys);
-            if(range<0.001)return null;
-            if(res.every(p=>Math.abs(p.y-p.x)<0.1)||res.every(p=>Math.abs(p.y+p.x)<0.1))return null;
-            const mid=(Math.max(...ys)+Math.min(...ys))/2,span=Math.max(range*1.5,10);
-            return {yDomain:[mid-span/2,mid+span/2],plotString:ast.toPlot(),latexString:ast.toLatex()};
-        }
-
-        // ================= UI Logic =================
+        // ================= UI Helper Functions =================
         function setTheme(theme) {
             document.documentElement.setAttribute('data-theme', theme);
             localStorage.setItem('theme', theme);
@@ -183,80 +119,98 @@
         function toggleTheme() { setTheme(document.documentElement.getAttribute('data-theme')==='light'?'dark':'light'); }
         function initTheme() { setTheme(localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')); }
         
-        let currentLatex="", currentData=null;
+        let currentLatex = "";
+        let currentData = null;
+
         function copyToClipboard() {
-            if(!currentLatex)return;
-            // 复制纯 LaTeX 代码
+            if(!currentLatex) return;
             navigator.clipboard.writeText(currentLatex).then(()=>{
                 document.getElementById('icon-copy').style.display='none';
                 document.getElementById('icon-check').style.display='block';
-                setTimeout(()=>{document.getElementById('icon-copy').style.display='block';document.getElementById('icon-check').style.display='none';},1500);
+                setTimeout(()=>{
+                    document.getElementById('icon-copy').style.display='block';
+                    document.getElementById('icon-check').style.display='none';
+                },1500);
             });
         }
+
         function drawPlot(data) {
             if (!window.functionPlot) return;
             const wrapper = document.getElementById('plot-wrapper');
             try {
                 functionPlot({
                     target: '#plot-area',
-                    width: wrapper.clientWidth, height: wrapper.clientHeight,
-                    yAxis: { domain: data.yDomain }, xAxis: { domain: [-6, 6] },
-                    grid: true, data: [{ fn: data.plotString, nSamples: 2000, graphType: 'polyline' }],
+                    width: wrapper.clientWidth, 
+                    height: wrapper.clientHeight,
+                    // 注意：x < 1 时 ln(ln(x)) 无定义，但我们保留左侧坐标轴以展示完整性
+                    yAxis: { domain: data.yDomain }, 
+                    xAxis: { domain: [-2, 8] }, 
+                    grid: true, 
+                    data: [{ 
+                        fn: data.plotString, 
+                        nSamples: 2000, // 采样率高一点，曲线更平滑
+                        graphType: 'polyline' 
+                    }],
                     disableZoom: true
                 });
             } catch(e) { console.error(e); }
         }
 
+        // ================= Core: Render specific function =================
         function run() {
             const btn = document.getElementById('btn');
             const plotDiv = document.getElementById('plot-area');
             const formDiv = document.getElementById('formula-container');
             const latexDiv = document.getElementById('latex');
-            const body = document.body;
 
+            // 动画状态重置
             btn.disabled = true;
             plotDiv.classList.remove('show');
             formDiv.classList.remove('show');
-            body.classList.remove('meme-mode');
 
+            // 模拟加载延时，配合动画
             setTimeout(() => {
                 try {
-                    let data = null;
-                    if (Math.random() < 0.001) {
-                        body.classList.add('meme-mode');
-                        data = {plotString:"sin(x)+114514",latexString:"\\sin(x)+114514",yDomain:[114513,114515]};
-                    } else {
-                        let ast=null, i=0;
-                        while(!data && i<200) {
-                            try { ast = generateAST(Math.floor(Math.random()*3)+2, true); data = validate(ast); } catch(err) {}
-                            i++;
-                        }
-                        if (!data) data = {plotString:"sin(x)",latexString:"\\sin(x)",yDomain:[-2,2]};
-                    }
+                    // --- 这里定义你的目标函数 ---
+                    const data = {
+                        // Plot语法: log 是 ln, E 是 e
+                        // plotString 中，直接用 1 替换 log(E)
+                        plotString: "sqrt(cos(1)) - log(log(x))",
+                        // latexString 中，直接用 1 替换 \ln{e}，并优化了括号写法
+                        latexString: "\\sqrt{\\cos(1)} - \\ln(\\ln(x))",
+                        // Y轴范围: 限制一下避免趋向无穷时压缩图像
+                        yDomain: [-4, 3]
+                    };
 
                     currentLatex = data.latexString;
                     currentData = data;
                     
-                    // 【核心修改】使用 align 风格渲染 (displaystyle + aligned)
-                    // \displaystyle 强制分数和积分符号变大
-                    // \begin{aligned} ... \end{aligned} 提供优美的对齐和间距
+                    // 渲染公式
                     katex.render(`\\displaystyle \\begin{aligned} f(x) &= ${data.latexString} \\end{aligned}`, latexDiv, {
                         throwOnError: false,
-                        displayMode: true // 开启显示模式
+                        displayMode: true
                     });
                     
+                    // 绘制图像
                     drawPlot(data);
 
+                    // 显示结果
                     plotDiv.classList.add('show');
                     formDiv.classList.add('show');
 
                 } catch (e) { console.error(e); } 
                 finally { btn.disabled = false; }
-            }, 600);
+            }, 500);
         }
 
+        // 窗口大小改变时重绘
         window.addEventListener('resize', () => { if(currentData) drawPlot(currentData); });
-        window.onload = function() { initTheme(); setTimeout(run, 500); };
+        
+        // 页面加载完毕自动运行一次
+        window.onload = function() { 
+            initTheme(); 
+            setTimeout(run, 300); 
+        };
     </script>
 </body>
 </html>

@@ -1,0 +1,23 @@
+%!TEX program = xelatex
+\documentclass[12pt, a4paper]{article}
+
+% 1. 禁用 ctex 自动字体设置
+\usepackage[UTF8, fontset=none]{ctex}
+\usepackage{geometry}
+
+% 2. 手动指定 Mac 系统存在的字体
+% 注意：这里不再用 STFangsong，全部用系统确定的字体
+\setCJKmainfont{Songti SC}   % 宋体
+\setCJKsansfont{Heiti SC}    % 黑体
+\setCJKmonofont{Menlo}       % 等宽字体用英文的 Menlo，防止报错
+
+\begin{document}
+
+\section{Mac 原生字体测试}
+这里调用的是你 Mac 自带的 Songti SC。
+\textbf{这里是 Heiti SC。}
+\texttt{这里是 Menlo。}
+
+$$ a^2 + b^2 = c^2 $$
+
+\end{document}
